@@ -1,0 +1,119 @@
+{
+  "entities": {
+    "Vehicle": {
+      "title": "Vehicle",
+      "description": "Represents a vehicle in the inventory",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "make": { "type": "string" },
+        "model": { "type": "string" },
+        "variant": { "type": "string" },
+        "year": { "type": "number" },
+        "price": { "type": "number" },
+        "mileage": { "type": "number" },
+        "fuelType": { "type": "string", "enum": ["Petrol", "Diesel", "CNG", "Electric"] },
+        "transmission": { "type": "string", "enum": ["Manual", "Automatic"] },
+        "engine": { "type": "string" },
+        "color": { "type": "string" },
+        "ownership": { "type": "string" },
+        "registration": { "type": "string" },
+        "images": { "type": "array", "items": { "type": "string" } },
+        "features": { "type": "array", "items": { "type": "string" } },
+        "status": { "type": "string", "enum": ["Available", "Sold", "Booked"] },
+        "createdAt": { "type": "string", "format": "timestamp" },
+        "updatedAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["id", "make", "model", "variant", "year", "price", "status"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "Represents an authorized dealer administrator",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["email"]
+    },
+    "SiteConfig": {
+      "title": "SiteConfig",
+      "description": "Website site manager and branding configuration",
+      "type": "object",
+      "properties": {
+        "aboutImage": { "type": "string" },
+        "homeHeroImage": { "type": "string" },
+        "logo": { "type": "string" },
+        "clientDeliveries": { "type": "array", "items": { "type": "string" } },
+        "updatedAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["aboutImage", "homeHeroImage", "logo"]
+    },
+    "InventoryMeta": {
+      "title": "InventoryMeta",
+      "description": "Single source of truth version state of the inventory cache system",
+      "type": "object",
+      "properties": {
+        "version": { "type": "number" },
+        "vehicleCount": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["version", "vehicleCount"]
+    },
+    "Lead": {
+      "title": "Lead",
+      "description": "Customer purchase lead submission",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "car": { "type": "string" },
+        "status": { "type": "string" },
+        "date": { "type": "string" },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["id", "name", "phone", "car", "status"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Showroom client reviews and ratings",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "rating": { "type": "number" },
+        "text": { "type": "string" },
+        "date": { "type": "string" }
+      },
+      "required": ["id", "name", "rating", "text"]
+    }
+  },
+  "firestore": {
+    "/vehicles/{vehicleId}": {
+      "schema": { "$ref": "#/entities/Vehicle" },
+      "description": "Stores all vehicles inside the inventory"
+    },
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/Admin" },
+      "description": "Stores admin accounts block"
+    },
+    "/site_config/current": {
+      "schema": { "$ref": "#/entities/SiteConfig" },
+      "description": "The active branding layout site config"
+    },
+    "/inventory_meta/current": {
+      "schema": { "$ref": "#/entities/InventoryMeta" },
+      "description": "The cached inventory metadata"
+    },
+    "/leads/{leadId}": {
+      "schema": { "$ref": "#/entities/Lead" },
+      "description": "Customer generated leads"
+    },
+    "/reviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/Review" },
+      "description": "Client rating testimonials"
+    }
+  }
+}

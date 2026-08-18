@@ -1,0 +1,6 @@
+{
+  "name": "Bombay Motors",
+  "description": "Premium pre-owned car dealership dedicated to providing quality inspected vehicles, transparent transactions and a hassle-free buying experience.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
