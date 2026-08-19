@@ -26,21 +26,21 @@ export default function About() {
   return (
     <div className="bg-transparent text-zinc-300 font-sans min-h-screen">
       {/* Top Header & Milestone Section */}
-      <section className="pt-24 sm:pt-32 pb-10 sm:pb-16 bg-transparent relative z-10">
+      <section className="pt-4 sm:pt-8 pb-6 sm:pb-10 bg-transparent relative z-10">
         <div className="container mx-auto max-w-7xl px-3.5 sm:px-6">
           
           {/* Header Title Block */}
-          <div className="text-center max-w-3xl mx-auto mb-10 sm:mb-14 animate-fade-in">
-            <span className="text-zinc-400 font-sans tracking-[0.25em] uppercase text-[11px] sm:text-xs font-semibold mb-2 sm:mb-3 block">
+          <div className="text-center max-w-3xl mx-auto mb-5 sm:mb-7 animate-fade-in">
+            <span className="text-zinc-400 font-sans tracking-[0.25em] uppercase text-[10px] sm:text-xs font-semibold mb-1.5 sm:mb-2 block">
               BOUTIQUE HISTORY
             </span>
-            <h1 className="text-3xl sm:text-5xl md:text-6xl font-black font-sans tracking-tight text-white uppercase mb-3 sm:mb-4">
+            <h1 className="text-2xl sm:text-4xl md:text-5xl font-black font-sans tracking-tight text-white uppercase mb-2 sm:mb-3">
               BOMBAY MOTORS
             </h1>
             
             {/* Established Badge - Pure Monochrome Frost Pill */}
-            <div className="inline-flex items-center gap-2 px-3.5 sm:px-5 py-1.5 rounded-full border border-white/20 bg-white/[0.06] backdrop-blur-md text-zinc-200 text-[10px] sm:text-xs uppercase tracking-wider sm:tracking-widest font-sans font-semibold shadow-sm mb-4 sm:mb-5">
-              <Bookmark className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white fill-white shrink-0" />
+            <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full border border-white/20 bg-white/[0.06] backdrop-blur-md text-zinc-200 text-[9px] sm:text-xs uppercase tracking-wider font-sans font-semibold shadow-sm mb-3 sm:mb-4">
+              <Bookmark className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-white fill-white shrink-0" />
               <span>ESTD. 1986 • CELEBRATING 40 YEARS OF FAMILY TRUST</span>
             </div>
 
@@ -50,9 +50,9 @@ export default function About() {
           </div>
 
           {/* Milestones Container Card */}
-          <div className="frost-card rounded-2xl sm:rounded-3xl p-4 sm:p-7 md:p-10 shadow-2xl border border-white/15 animate-fade-in">
+          <div className="frost-card rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 md:p-8 shadow-xl border border-white/15 animate-fade-in">
             {/* Milestone Header */}
-            <div className="flex items-center gap-2 pb-4 sm:pb-6 border-b border-white/10 mb-6 sm:mb-8 text-[11px] sm:text-xs md:text-sm font-sans tracking-wider uppercase font-bold flex-wrap">
+            <div className="flex items-center gap-2 pb-3 sm:pb-4 border-b border-white/10 mb-4 sm:mb-6 text-[10px] sm:text-xs md:text-sm font-sans tracking-wider uppercase font-bold flex-wrap">
               <div className="flex items-center gap-2">
                 <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white shrink-0" />
                 <span className="text-zinc-300 font-semibold">FOUR DECADES ON LBS MARG</span>
@@ -62,12 +62,12 @@ export default function About() {
             </div>
 
             {/* Milestones 4-Column Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-5 md:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
               {/* 1986 */}
-              <div className="bg-black/40 border border-white/10 hover:border-white/30 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 transition-all duration-300 flex flex-col justify-between">
+              <div className="bg-black/40 border border-white/10 hover:border-white/30 rounded-xl sm:rounded-2xl p-3.5 sm:p-4 md:p-5 transition-all duration-300 flex flex-col justify-between">
                 <div>
-                  <div className="text-xl sm:text-2xl md:text-3xl font-bold font-cinzel text-white mb-1.5 sm:mb-2">1986</div>
-                  <h3 className="text-white font-bold text-[11px] sm:text-xs md:text-sm tracking-wider uppercase font-sans mb-2 sm:mb-3">
+                  <div className="text-lg sm:text-xl md:text-2xl font-bold font-cinzel text-white mb-1">1986</div>
+                  <h3 className="text-white font-bold text-[10px] sm:text-xs md:text-sm tracking-wider uppercase font-sans mb-1.5 sm:mb-2">
                     THE IGNITION CORNER
                   </h3>
                   <p className="text-zinc-300 text-xs leading-relaxed font-sans font-normal">
@@ -77,10 +77,10 @@ export default function About() {
               </div>
 
               {/* 1998 */}
-              <div className="bg-black/40 border border-white/10 hover:border-white/30 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 transition-all duration-300 flex flex-col justify-between">
+              <div className="bg-black/40 border border-white/10 hover:border-white/30 rounded-xl sm:rounded-2xl p-3.5 sm:p-4 md:p-5 transition-all duration-300 flex flex-col justify-between">
                 <div>
-                  <div className="text-xl sm:text-2xl md:text-3xl font-bold font-cinzel text-white mb-1.5 sm:mb-2">1998</div>
-                  <h3 className="text-white font-bold text-[11px] sm:text-xs md:text-sm tracking-wider uppercase font-sans mb-2 sm:mb-3">
+                  <div className="text-lg sm:text-xl md:text-2xl font-bold font-cinzel text-white mb-1">1998</div>
+                  <h3 className="text-white font-bold text-[10px] sm:text-xs md:text-sm tracking-wider uppercase font-sans mb-1.5 sm:mb-2">
                     2,500TH VEHICLE KEY
                   </h3>
                   <p className="text-zinc-300 text-xs leading-relaxed font-sans font-normal">
@@ -90,10 +90,10 @@ export default function About() {
               </div>
 
               {/* 2012 */}
-              <div className="bg-black/40 border border-white/10 hover:border-white/30 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 transition-all duration-300 flex flex-col justify-between">
+              <div className="bg-black/40 border border-white/10 hover:border-white/30 rounded-xl sm:rounded-2xl p-3.5 sm:p-4 md:p-5 transition-all duration-300 flex flex-col justify-between">
                 <div>
-                  <div className="text-xl sm:text-2xl md:text-3xl font-bold font-cinzel text-white mb-1.5 sm:mb-2">2012</div>
-                  <h3 className="text-white font-bold text-[11px] sm:text-xs md:text-sm tracking-wider uppercase font-sans mb-2 sm:mb-3">
+                  <div className="text-lg sm:text-xl md:text-2xl font-bold font-cinzel text-white mb-1">2012</div>
+                  <h3 className="text-white font-bold text-[10px] sm:text-xs md:text-sm tracking-wider uppercase font-sans mb-1.5 sm:mb-2">
                     GENERATIONAL TRUST
                   </h3>
                   <p className="text-zinc-300 text-xs leading-relaxed font-sans font-normal">
@@ -103,10 +103,10 @@ export default function About() {
               </div>
 
               {/* 2026 */}
-              <div className="bg-black/40 border border-white/10 hover:border-white/30 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 transition-all duration-300 flex flex-col justify-between">
+              <div className="bg-black/40 border border-white/10 hover:border-white/30 rounded-xl sm:rounded-2xl p-3.5 sm:p-4 md:p-5 transition-all duration-300 flex flex-col justify-between">
                 <div>
-                  <div className="text-xl sm:text-2xl md:text-3xl font-bold font-cinzel text-white mb-1.5 sm:mb-2">2026</div>
-                  <h3 className="text-white font-bold text-[11px] sm:text-xs md:text-sm tracking-wider uppercase font-sans mb-2 sm:mb-3">
+                  <div className="text-lg sm:text-xl md:text-2xl font-bold font-cinzel text-white mb-1">2026</div>
+                  <h3 className="text-white font-bold text-[10px] sm:text-xs md:text-sm tracking-wider uppercase font-sans mb-1.5 sm:mb-2">
                     40-YEAR JUBILEE
                   </h3>
                   <p className="text-zinc-300 text-xs leading-relaxed font-sans font-normal">
@@ -397,26 +397,26 @@ export default function About() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-5 lg:gap-6">
             {MOCK_REVIEWS.map((review) => {
               return (
-                <div key={review.id} className="frost-card p-5 sm:p-8 rounded-2xl flex flex-col justify-between">
+                <div key={review.id} className="frost-card p-4 sm:p-5 rounded-2xl flex flex-col justify-between">
                   <div>
-                    <div className="flex justify-between items-start mb-4 sm:mb-6">
+                    <div className="flex justify-between items-start mb-3">
                       <div className="flex gap-1">
                         {[...Array(review.rating)].map((_, idx) => (
-                          <Star key={idx} className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-white text-white" />
+                          <Star key={idx} className="w-3.5 h-3.5 fill-white text-white" />
                         ))}
                       </div>
                     </div>
-                    <p className="text-zinc-100 italic text-xs sm:text-sm leading-relaxed mb-5 sm:mb-6 font-normal font-sans">"{review.text}"</p>
+                    <p className="text-zinc-200 text-xs leading-relaxed mb-4 font-normal font-sans">"{review.text}"</p>
                   </div>
-                  <div className="border-t border-white/10 pt-3.5 sm:pt-4 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center font-bold text-white text-xs">
+                  <div className="border-t border-white/10 pt-3 flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center font-bold text-white text-xs shrink-0">
                       {review.name.charAt(0)}
                     </div>
                     <div>
-                      <h3 className="text-white font-semibold text-xs sm:text-sm tracking-wide">{review.name}</h3>
+                      <h3 className="text-white font-semibold text-xs tracking-wide">{review.name}</h3>
                       <p className="text-[10px] text-zinc-300 mt-0.5">{review.date}</p>
                     </div>
                   </div>
@@ -425,33 +425,31 @@ export default function About() {
             })}
           </div>
 
-          <div className="mt-10 sm:mt-14 flex justify-center">
+          <div className="mt-8 sm:mt-10 flex justify-center px-4">
             <a 
               href="https://share.google/VGXKDMtikeDYt2Lcn" 
               target="_blank" 
               rel="noreferrer" 
-              className="group flex items-center justify-between gap-4 sm:gap-6 px-6 sm:px-8 py-3.5 sm:py-4 frost-pill text-white hover:text-black font-bold rounded-full text-[11px] sm:text-xs tracking-[0.15em] sm:tracking-[0.2em] uppercase font-sans transition-all duration-300 hover:scale-[1.02] active:scale-95 shadow-xl max-w-md w-full sm:w-auto"
+              className="group flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 frost-pill text-white hover:text-black font-bold rounded-full text-[10.5px] sm:text-xs tracking-wider uppercase font-sans transition-all duration-300 hover:scale-[1.02] active:scale-95 shadow-md max-w-[240px] sm:max-w-none w-full sm:w-auto"
             >
-              <div className="flex items-center gap-2.5 sm:gap-3">
-                <Star className="w-4 h-4 fill-white text-white group-hover:text-black transition-colors" />
-                <span>Write or View Google Reviews</span>
-              </div>
-              <span className="text-sm font-light transition-transform duration-300 group-hover:translate-x-1.5">→</span>
+              <Star className="w-3.5 h-3.5 fill-white text-white group-hover:text-black shrink-0 transition-colors" />
+              <span>View Google Reviews</span>
+              <span className="text-xs font-light transition-transform duration-300 group-hover:translate-x-1">→</span>
             </a>
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-12 sm:py-20 bg-transparent text-center border-t border-white/10 relative z-10 animate-fade-in overflow-hidden font-sans">
+      <section className="py-12 sm:py-16 bg-transparent text-center border-t border-white/10 relative z-10 animate-fade-in overflow-hidden font-sans">
         <div className="container mx-auto max-w-3xl px-4 relative z-10">
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-sans font-black text-white mb-3 sm:mb-4 tracking-wide uppercase">Experience Ultimate Procurement</h2>
-          <p className="text-zinc-200 mb-6 sm:mb-8 font-normal tracking-wide text-xs sm:text-base md:text-lg">We welcome you to our showroom to inspect our pristine, handpicked family cars in Mumbai.</p>
-          <div className="flex flex-col sm:flex-row gap-3.5 sm:gap-5 justify-center text-xs tracking-widest uppercase font-sans font-bold max-w-xs sm:max-w-none mx-auto">
-            <Link to="/inventory" className="bg-white text-black hover:bg-zinc-200 px-7 sm:px-10 py-3 sm:py-4 transition-all duration-300 rounded-full shadow-lg">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-sans font-black text-white mb-2.5 sm:mb-3 tracking-wide uppercase">Experience Honest Procurement</h2>
+          <p className="text-zinc-200 mb-6 sm:mb-7 font-normal tracking-wide text-xs sm:text-sm md:text-base">We welcome you to inspect our verified, certified pre-owned family vehicles in Mumbai.</p>
+          <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-4 justify-center text-[11px] sm:text-xs tracking-wider uppercase font-sans font-bold max-w-[240px] sm:max-w-none mx-auto">
+            <Link to="/inventory" className="bg-white text-black hover:bg-zinc-200 px-5 sm:px-7 py-2.5 sm:py-3 transition-all duration-300 rounded-full shadow-md text-center">
               Browse Collection
             </Link>
-            <Link to="/sell" className="frost-pill text-white hover:text-black px-7 sm:px-10 py-3 sm:py-4 transition-all duration-300 rounded-full shadow-sm">
+            <Link to="/sell" className="frost-pill text-white hover:text-black px-5 sm:px-7 py-2.5 sm:py-3 transition-all duration-300 rounded-full shadow-sm text-center">
               Sell Your Car
             </Link>
           </div>

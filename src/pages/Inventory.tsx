@@ -133,11 +133,11 @@ export default function Inventory() {
   const ALL_FUELS = ['Petrol', 'Diesel', 'Hybrid', 'Electric', 'CNG'];
 
   return (
-    <div className="min-h-screen bg-transparent text-zinc-300 py-6 sm:py-12 font-sans z-10 relative">
+    <div className="min-h-screen bg-transparent text-zinc-300 py-4 sm:py-8 font-sans z-10 relative">
       <div className="container mx-auto max-w-7xl px-3.5 sm:px-6">
         
         {/* Header - Pure Monochrome Black & White with Rich Frosted Elements */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 md:mb-12 gap-4 sm:gap-6 border-b border-white/10 pb-6 md:pb-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-5 md:mb-8 gap-3 sm:gap-6 border-b border-white/10 pb-4 md:pb-6">
           <div>
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-cinzel font-bold tracking-wider sm:tracking-widest uppercase text-white">
               Showroom Collection

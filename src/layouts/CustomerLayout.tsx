@@ -247,28 +247,28 @@ export default function CustomerLayout() {
                   href="https://www.instagram.com/bombaymotorss/" 
                   target="_blank" 
                   rel="noreferrer" 
-                  className="w-8 h-8 rounded-full frost-pill flex items-center justify-center text-zinc-200 hover:text-white"
+                  className="w-8 h-8 rounded-full frost-pill flex items-center justify-center text-[#E4405F] hover:text-[#f77737] hover:border-[#E4405F]/50 transition-all"
                   title="Instagram @bombaymotorss"
                 >
-                  <Instagram className="w-3.5 h-3.5 stroke-[1.5]" />
+                  <Instagram className="w-3.5 h-3.5 stroke-[1.8]" />
                 </a>
                 <a 
                   href="https://wa.me/917400113999" 
                   target="_blank" 
                   rel="noreferrer" 
-                  className="w-8 h-8 rounded-full frost-pill flex items-center justify-center text-zinc-200 hover:text-white"
+                  className="w-8 h-8 rounded-full frost-pill flex items-center justify-center text-[#25D366] hover:text-emerald-300 hover:border-[#25D366]/50 transition-all"
                   title="WhatsApp Assistant"
                 >
-                  <MessageCircle className="w-3.5 h-3.5 stroke-[1.5]" />
+                  <MessageCircle className="w-3.5 h-3.5 stroke-[1.8]" />
                 </a>
                 <a 
                   href="https://share.google/VGXKDMtikeDYt2Lcn" 
                   target="_blank" 
                   rel="noreferrer" 
-                  className="w-8 h-8 rounded-full frost-pill flex items-center justify-center text-zinc-200 hover:text-white"
+                  className="w-8 h-8 rounded-full frost-pill flex items-center justify-center text-[#EA4335] hover:text-red-400 hover:border-[#EA4335]/50 transition-all"
                   title="Google Location & Showroom"
                 >
-                  <MapPin className="w-3.5 h-3.5 stroke-[1.5]" />
+                  <MapPin className="w-3.5 h-3.5 stroke-[1.8]" />
                 </a>
               </div>
 
@@ -334,11 +334,11 @@ export default function CustomerLayout() {
                 </a>
               </div>
 
-              {/* Mobile Quick Action Buttons & Menu Toggle */}
-              <div className="flex md:hidden items-center space-x-2">
+              {/* Mobile Quick Action Buttons: Call, WhatsApp, Instagram, Maps, & Menu Toggle */}
+              <div className="flex md:hidden items-center space-x-1.5 sm:space-x-2">
                 <a 
                   href="tel:+917400113999" 
-                  className="w-8 h-8 rounded-full frost-pill flex items-center justify-center text-zinc-200 hover:text-white"
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full frost-pill flex items-center justify-center text-zinc-200 hover:text-white transition-colors"
                   title="Call Showroom"
                 >
                   <Phone className="w-3.5 h-3.5 stroke-[1.5]" />
@@ -347,17 +347,35 @@ export default function CustomerLayout() {
                   href="https://wa.me/917400113999" 
                   target="_blank" 
                   rel="noreferrer" 
-                  className="w-8 h-8 rounded-full frost-pill flex items-center justify-center text-zinc-200 hover:text-white"
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full frost-pill flex items-center justify-center text-[#25D366] hover:text-emerald-300 hover:border-[#25D366]/50 transition-colors"
                   title="WhatsApp"
                 >
-                  <MessageCircle className="w-3.5 h-3.5 stroke-[1.5]" />
+                  <MessageCircle className="w-3.5 h-3.5 stroke-[1.8]" />
+                </a>
+                <a 
+                  href="https://www.instagram.com/bombaymotorss/" 
+                  target="_blank" 
+                  rel="noreferrer" 
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full frost-pill flex items-center justify-center text-[#E4405F] hover:text-[#f77737] hover:border-[#E4405F]/50 transition-colors"
+                  title="Instagram @bombaymotorss"
+                >
+                  <Instagram className="w-3.5 h-3.5 stroke-[1.8]" />
+                </a>
+                <a 
+                  href="https://share.google/VGXKDMtikeDYt2Lcn" 
+                  target="_blank" 
+                  rel="noreferrer" 
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full frost-pill flex items-center justify-center text-[#EA4335] hover:text-red-400 hover:border-[#EA4335]/50 transition-colors"
+                  title="Showroom Location & Directions"
+                >
+                  <MapPin className="w-3.5 h-3.5 stroke-[1.8]" />
                 </a>
                 <button 
-                  className="w-8 h-8 rounded-full frost-pill flex items-center justify-center text-zinc-200 hover:text-white ml-0.5" 
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full frost-pill flex items-center justify-center text-zinc-200 hover:text-white ml-0.5 transition-colors" 
                   onClick={() => setIsMenuOpen(!isMenuOpen)} 
                   aria-label="Toggle menu"
                 >
-                  {isMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+                  {isMenuOpen ? <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Menu className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                 </button>
               </div>
 
@@ -469,10 +487,10 @@ export default function CustomerLayout() {
               Exotic & Luxury Motorcars. Founded 40 years ago in Mulund, Bombay Motors delivers uncompromising certification, transparent transactions, and bespoke automotive excellence.
             </p>
             <div className="flex items-center space-x-3 pt-2">
-              <a href="https://www.instagram.com/bombaymotorss/" target="_blank" rel="noreferrer" className="p-2.5 rounded-full frost-pill hover:bg-white hover:text-black transition-all text-white" title="Instagram @bombaymotorss">
+              <a href="https://www.instagram.com/bombaymotorss/" target="_blank" rel="noreferrer" className="p-2.5 rounded-full frost-pill hover:bg-[#E4405F] hover:text-white transition-all text-[#E4405F]" title="Instagram @bombaymotorss">
                 <Instagram className="w-4 h-4" />
               </a>
-              <a href="https://wa.me/917400113999" target="_blank" rel="noreferrer" className="p-2.5 rounded-full frost-pill hover:bg-white hover:text-black transition-all text-white" title="WhatsApp">
+              <a href="https://wa.me/917400113999" target="_blank" rel="noreferrer" className="p-2.5 rounded-full frost-pill hover:bg-[#25D366] hover:text-white transition-all text-[#25D366]" title="WhatsApp">
                 <MessageCircle className="w-4 h-4" />
               </a>
               <a href="tel:+917400113999" className="p-2.5 rounded-full frost-pill hover:bg-white hover:text-black transition-all text-white" title="Call Showroom">

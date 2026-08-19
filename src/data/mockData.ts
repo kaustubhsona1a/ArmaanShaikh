@@ -92,24 +92,31 @@ export const MOCK_VEHICLES: Vehicle[] = [
 export const MOCK_REVIEWS = [
   {
     id: 1,
-    name: "Rajesh Nair",
+    name: "Mahesh Kulkarni",
     rating: 5,
-    text: "Picked up a 530d M Sport last month. Bombay Motors was 100% transparent with full service history and zero hidden issues. Independent inspection in Kopar Khairane went flawlessly. Absolute rocket of a car!",
-    date: "2 months ago"
+    text: "Purchased a certified 2021 Hyundai Grand i10 Nios for my daily commute to BKC and family weekend trips. The car was in mint mechanical condition with original paint. Bombay Motors handled the Mulund RTO transfer in just 4 days with complete honesty and zero agent hassles.",
+    date: "Mulund West • 3 weeks ago"
   },
   {
     id: 2,
-    name: "Aditya Ranade",
+    name: "Pooja & Shrikant Sawant",
     rating: 5,
-    text: "Got a Verna Turbo delivered to my place in Vashi with complete records. Showroom condition, smooth RTO transfer, and zero dealer drama. Neighbors still think I bought it brand new!",
-    date: "1 month ago"
+    text: "We were looking for a reliable, genuine family car on a strict middle-class budget and found a clean 2020 Maruti Suzuki Swift VXi here. Exact odometer reading, clean service book from authorized workshop, and very polite guidance by the team. Highly recommended for Eastern Suburbs families!",
+    date: "Thane West • 1 month ago"
   },
   {
     id: 3,
-    name: "Amritpal Singh",
+    name: "Siddhesh Bhandare",
     rating: 5,
-    text: "Bought a 2022 GLS 400d for family trips. Visited their Nerul showroom, test drove, and closed the deal in 2 days. Solid car with ceramic coating done before delivery. Premium experience!",
-    date: "3 weeks ago"
+    text: "Got a verified 2022 Hyundai Venue SX for our family. Full transparency on chassis check, battery health, and test drive through LBS Marg. Transparent pricing without any hidden dealer commissions. Truly Mumbai's most dependable pre-owned car showroom.",
+    date: "Ghatkopar East • 2 months ago"
+  },
+  {
+    id: 4,
+    name: "Nitin Kadam",
+    rating: 5,
+    text: "Bought a 2019 Maruti Baleno Zeta. Bombay Motors team guided us patiently through finance options and transferred the insurance seamlessly. Clean car, fair valuation for my old Alto exchange, and absolute peace of mind for daily office drive.",
+    date: "Bhandup West • 2 weeks ago"
   }
 ];
 

@@ -138,14 +138,14 @@ export default function SellCar() {
   };
 
   return (
-    <div className="min-h-screen bg-transparent py-16 font-sans text-zinc-300 z-10 relative">
-      <div className="container mx-auto max-w-3xl px-4">
+    <div className="min-h-screen bg-transparent py-6 sm:py-10 font-sans text-zinc-300 z-10 relative">
+      <div className="container mx-auto max-w-3xl px-3.5 sm:px-4">
         
-        <div className="text-center mb-16">
-          <span className="text-zinc-300 tracking-[0.2em] uppercase text-xs font-semibold mb-3 block font-sans">Direct Motorcar Valuation</span>
-          <h1 className="text-3xl md:text-5xl font-cinzel font-bold tracking-wide uppercase text-white mb-5">Sell Your Luxury Vehicle</h1>
-          <p className="text-base text-zinc-200 font-normal max-w-2xl mx-auto leading-relaxed font-sans">
-            We acquire premium on-road vehicles through an honest, streamlined walkthrough. Provide your vehicle details below for a professional, pressure-free evaluation from Bombay Motors.
+        <div className="text-center mb-6 sm:mb-10">
+          <span className="text-zinc-300 tracking-[0.2em] uppercase text-[10px] sm:text-xs font-semibold mb-1.5 sm:mb-2 block font-sans">Direct Motorcar Valuation</span>
+          <h1 className="text-2xl sm:text-4xl md:text-5xl font-cinzel font-bold tracking-wide uppercase text-white mb-2 sm:mb-4">Sell Your Vehicle</h1>
+          <p className="text-xs sm:text-sm md:text-base text-zinc-200 font-normal max-w-2xl mx-auto leading-relaxed font-sans">
+            We acquire verified pre-owned vehicles through an honest, streamlined walkthrough. Provide your vehicle details below for a professional evaluation from Bombay Motors.
           </p>
         </div>
 
@@ -282,15 +282,15 @@ export default function SellCar() {
               <button 
                 type="submit" 
                 disabled={uploading}
-                className="w-full bg-white hover:bg-zinc-100 disabled:opacity-50 text-black py-4.5 rounded-full uppercase tracking-widest text-xs font-bold transition-all duration-300 font-sans shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full bg-white hover:bg-zinc-100 disabled:opacity-50 text-black py-3 sm:py-3.5 rounded-full uppercase tracking-wider text-[11px] sm:text-xs font-bold transition-all duration-300 font-sans shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-98"
               >
                 {uploading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin text-black" />
-                    Uploading vehicle data & compressing images...
+                    <span>Processing details...</span>
                   </>
                 ) : (
-                  "Submit Vehicle Details for Appraisal"
+                  <span>Submit Vehicle Details for Appraisal</span>
                 )}
               </button>
             </form>
