@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Star, MapPin, Phone, ExternalLink, Video } from 'lucide-react';
+import { Star, MapPin, Phone, ExternalLink, Video, Gauge, Fuel, Settings, ShieldCheck, Instagram, ArrowRight } from 'lucide-react';
 import { formatPrice, MOCK_REVIEWS } from '../data/mockData';
 import { useVehicles } from '../context/VehicleContext';
 import { Helmet } from 'react-helmet-async';
@@ -51,62 +51,116 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Featured Fleet Preview */}
+      {/* Featured Collection Section (Directly after Hero) */}
       {featuredCars.length > 0 && (
         <section className="py-12 sm:py-20 bg-transparent relative z-10 border-t border-white/10">
-          <div className="container mx-auto max-w-7xl px-3.5 sm:px-6">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 sm:mb-12">
-              <div>
-                <span className="text-zinc-300 tracking-[0.25em] uppercase text-[10px] sm:text-[11px] font-bold mb-1.5 sm:mb-2 block font-sans">Curated Selection</span>
-                <h2 className="text-2xl sm:text-3xl md:text-4xl font-cinzel text-white tracking-wide font-bold uppercase">Featured In The Showroom</h2>
-              </div>
-              <Link to="/inventory" className="mt-3 md:mt-0 inline-flex items-center gap-2 text-[11px] sm:text-xs uppercase font-sans font-semibold tracking-widest text-zinc-200 hover:text-white border-b border-white/30 pb-0.5 sm:pb-1 transition-all">
-                <span>View Full Vault ({vehicles.filter(v => v.status === 'Available').length} Vehicles)</span>
-                <span>→</span>
+          <div className="container mx-auto max-w-7xl px-4 sm:px-6">
+            
+            {/* Header Row */}
+            <div className="flex flex-row justify-between items-center mb-8 sm:mb-12">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-sans font-extrabold text-white tracking-tight">
+                Featured Collection
+              </h2>
+              <Link 
+                to="/inventory" 
+                className="inline-flex items-center gap-1.5 text-[10.5px] sm:text-xs uppercase font-sans font-semibold tracking-[0.18em] text-zinc-300 hover:text-white transition-colors group"
+              >
+                <span>VIEW ENTIRE COLLECTION</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
               </Link>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-              {featuredCars.map((car) => (
-                <Link 
-                  key={car.id} 
-                  to={`/inventory/${car.id}`}
-                  className="group relative frost-card rounded-2xl overflow-hidden flex flex-col justify-between"
-                >
-                  <div className="relative aspect-[16/10] overflow-hidden bg-black/60">
-                    <img 
-                      src={car.images[0] || "https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?auto=format&fit=crop&q=80&w=800"} 
-                      alt={`${car.make} ${car.model}`}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
-                    />
-                    <div className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full frost-pill text-[9px] sm:text-[10px] font-sans uppercase tracking-wider text-zinc-100 font-semibold">
-                      {car.year} • {car.fuelType}
-                    </div>
-                    <div className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full frost-pill text-[9px] sm:text-[10px] font-sans uppercase tracking-wider text-white font-semibold">
-                      {car.status}
-                    </div>
-                  </div>
+            {/* 3-Column Card Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+              {featuredCars.map((car) => {
+                const reelUrl = car.instagramReel || (siteConfig.instagramReels && siteConfig.instagramReels.length > 0 ? siteConfig.instagramReels[0] : "https://www.instagram.com/bombaymotorss/");
 
-                  <div className="p-4 sm:p-5 flex flex-col justify-between flex-grow">
-                    <div>
-                      <h3 className="font-cinzel font-bold text-base sm:text-lg text-white group-hover:text-zinc-200 transition-colors uppercase tracking-wider">
-                        {car.make} {car.model}
-                      </h3>
-                      <p className="text-xs text-zinc-300 font-normal mt-1 font-sans">{car.variant}</p>
-                    </div>
-
-                    <div className="mt-4 sm:mt-5 pt-3 border-t border-white/10 flex items-center justify-between font-sans">
-                      <div>
-                        <span className="text-[9px] sm:text-[10px] uppercase tracking-wider text-zinc-300 block font-semibold">Offer Price</span>
-                        <span className="text-base sm:text-lg font-bold text-white tracking-tight font-cinzel">{formatPrice(car.price)}</span>
+                return (
+                  <div 
+                    key={car.id} 
+                    className="group relative bg-[#0e0e12]/90 backdrop-blur-xl border border-white/10 rounded-2xl sm:rounded-3xl p-3.5 sm:p-4.5 flex flex-col justify-between hover:border-white/25 transition-all duration-300 shadow-2xl hover:shadow-[0_15px_40px_rgba(0,0,0,0.8)]"
+                  >
+                    {/* Top Image Container with Badges */}
+                    <div className="relative aspect-[4/3] rounded-xl sm:rounded-2xl overflow-hidden bg-black/80 mb-4 sm:mb-5">
+                      <img 
+                        src={car.images[0] || "https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?auto=format&fit=crop&q=80&w=800"} 
+                        alt={`${car.make} ${car.model}`}
+                        className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105" 
+                      />
+                      
+                      {/* Year Badge (Top-Left) */}
+                      <div className="absolute top-3 left-3 px-3 py-1 bg-black/75 backdrop-blur-md border border-white/10 text-white text-[11px] sm:text-xs font-mono font-bold rounded-lg tracking-wider shadow-md">
+                        {car.year}
                       </div>
-                      <span className="px-3.5 sm:px-4 py-1 sm:py-1.5 rounded-full frost-pill text-white group-hover:bg-white group-hover:text-black transition-all text-[10px] sm:text-[11px] font-bold uppercase tracking-wider font-sans">
-                        Inspect →
-                      </span>
+
+                      {/* Watch Reel Badge (Top-Right) */}
+                      <a 
+                        href={reelUrl} 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        onClick={(e) => e.stopPropagation()}
+                        className="absolute top-3 right-3 px-3 py-1 bg-gradient-to-r from-orange-500 via-rose-500 to-pink-600 text-white text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider rounded-full flex items-center gap-1.5 shadow-lg shadow-pink-950/40 hover:scale-105 active:scale-95 transition-all z-10"
+                        title="Watch Instagram Reel"
+                      >
+                        <Instagram className="w-3 h-3" />
+                        <span>WATCH REEL</span>
+                      </a>
+                    </div>
+
+                    {/* Content Details */}
+                    <div className="flex flex-col flex-grow justify-between px-1">
+                      <div>
+                        {/* Title: Make (Bold) Model (Normal) */}
+                        <h3 className="text-lg sm:text-xl font-sans tracking-tight text-white mb-1">
+                          <span className="font-extrabold">{car.make}</span>{" "}
+                          <span className="font-normal text-zinc-200">{car.model}</span>
+                        </h3>
+
+                        {/* Variant / Subtitle */}
+                        <p className="text-[10.5px] sm:text-xs font-mono uppercase tracking-widest text-zinc-400 mb-3.5">
+                          {car.variant || "PREMIUM SPEC"}
+                        </p>
+
+                        {/* Price with Red Accent Indicator */}
+                        <div className="flex items-center gap-2 mb-4 sm:mb-5">
+                          <span className="w-1.5 h-5 sm:h-6 bg-red-600 rounded-full inline-block shrink-0"></span>
+                          <span className="text-xl sm:text-2xl font-bold font-sans text-white tracking-tight">
+                            {formatPrice(car.price)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* 2x2 Specs Grid */}
+                      <div className="grid grid-cols-2 gap-y-2.5 gap-x-4 py-3 sm:py-3.5 border-t border-white/10 text-zinc-300 text-xs font-sans">
+                        <div className="flex items-center gap-2">
+                          <Gauge className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                          <span className="truncate">{car.mileage ? `${car.mileage.toLocaleString('en-IN')} KM` : '39,000 KM'}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Fuel className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                          <span className="truncate">{car.fuelType || 'Petrol'}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Settings className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                          <span className="truncate">{car.transmission || 'Automatic'}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <ShieldCheck className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                          <span className="truncate">{car.ownership || 'Standard'}</span>
+                        </div>
+                      </div>
+
+                      {/* View Details Button */}
+                      <Link 
+                        to={`/inventory/${car.id}`}
+                        className="mt-4 sm:mt-5 w-full py-2.5 sm:py-3 border border-white/15 hover:border-white/40 hover:bg-white hover:text-black rounded-xl text-center text-[10.5px] sm:text-xs uppercase tracking-widest font-bold text-zinc-300 transition-all duration-300 block"
+                      >
+                        VIEW DETAILS
+                      </Link>
                     </div>
                   </div>
-                </Link>
-              ))}
+                );
+              })}
             </div>
           </div>
         </section>
