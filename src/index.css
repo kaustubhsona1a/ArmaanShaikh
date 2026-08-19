@@ -11,6 +11,11 @@
 }
 
 @layer base {
+  html, body {
+    touch-action: manipulation;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
   body {
     @apply bg-[#050505] text-zinc-300 font-sans antialiased selection:bg-white selection:text-black;
   }
@@ -20,6 +25,10 @@
   html {
     @apply font-sans bg-[#050505];
     scroll-behavior: smooth;
+  }
+  input, select, textarea {
+    font-size: 16px;
+    touch-action: manipulation;
   }
 }
 

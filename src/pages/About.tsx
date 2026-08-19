@@ -223,13 +223,13 @@ export default function About() {
                     <span>SHOWROOM ADDRESS</span>
                   </div>
                   <p className="text-zinc-300 text-xs leading-relaxed font-sans">
-                    Shop No 10, Neel Empire, Sector 25, Nerul East, Navi Mumbai & L.B.S. Marg, Mulund West, Mumbai
+                    1-A, Ekta Apartment, L.B.S. Marg, Mulund West, opposite Santoshimata Mandir, Mumbai, Maharashtra 400080
                   </p>
                 </div>
 
                 <div className="pt-2">
                   <a 
-                    href="https://share.google/VGXKDMtikeDYt2Lcn" 
+                    href="https://maps.app.goo.gl/maCnSZA5JyHEEMNv8" 
                     target="_blank" 
                     rel="noreferrer" 
                     className="w-full frost-pill text-white hover:text-black py-2.5 sm:py-3 px-4 rounded-xl text-xs font-bold uppercase tracking-wider font-sans transition-all flex items-center justify-center gap-2 shadow-sm"

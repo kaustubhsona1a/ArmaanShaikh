@@ -61,10 +61,9 @@ export default function CustomerLayout() {
     }
   }, [scrollY, isHomePage]);
 
-  // Custom multi-tap tracker for dealer console access on mobile (esp. iPhone Safari)
-  const tapCountRef = React.useRef(0);
-  const lastTapTimeRef = React.useRef(0);
-  const isTouchRef = React.useRef(false);
+  // Custom multi-tap tracker for dealer console access on mobile (esp. Safari iOS)
+  const tapHistoryRef = React.useRef<number[]>([]);
+  const lastTapEventTimeRef = React.useRef<number>(0);
 
   React.useEffect(() => {
     const handleScroll = () => {
@@ -83,40 +82,23 @@ export default function CustomerLayout() {
     setTimeout(() => {
       navigate('/dealer-management');
       setNotification('');
-    }, 800);
+    }, 600);
   };
 
-  const registerTap = () => {
+  const handleCopyrightTap = (e: React.SyntheticEvent) => {
     const now = Date.now();
-    const lastTapTime = lastTapTimeRef.current;
-    const currentTapCount = tapCountRef.current;
+    // Debounce duplicate events (e.g. touchend followed immediately by synthetic click)
+    if (now - lastTapEventTimeRef.current < 120) return;
+    lastTapEventTimeRef.current = now;
 
-    if (now - lastTapTime < 1500) {
-      const nextCount = currentTapCount + 1;
-      if (nextCount >= 3) {
-        handleSecretLogin();
-        tapCountRef.current = 0;
-      } else {
-        tapCountRef.current = nextCount;
-      }
-    } else {
-      tapCountRef.current = 1;
+    // Filter to taps that happened within the last 1500ms
+    const recentTaps = [...tapHistoryRef.current.filter(t => now - t < 1500), now];
+    tapHistoryRef.current = recentTaps;
+
+    if (recentTaps.length >= 3) {
+      tapHistoryRef.current = [];
+      handleSecretLogin();
     }
-    lastTapTimeRef.current = now;
-  };
-
-  const handleCopyrightClick = (e: React.MouseEvent) => {
-    if (isTouchRef.current) {
-      // Handled by touch event, reset flag and skip click to avoid double registering
-      isTouchRef.current = false;
-      return;
-    }
-    registerTap();
-  };
-
-  const handleCopyrightTouch = (e: React.TouchEvent) => {
-    isTouchRef.current = true;
-    registerTap();
   };
 
   const showVideo = false;
@@ -460,7 +442,7 @@ export default function CustomerLayout() {
       </main>
 
       {/* Footer - Frosted Glass Container */}
-      <footer id="contact" className="bg-black/40 backdrop-blur-2xl border-t border-white/10 text-zinc-400 pt-24 pb-12 px-4 mt-20 relative overflow-hidden font-sans">
+      <footer className="bg-black/40 backdrop-blur-2xl border-t border-white/10 text-zinc-400 pt-10 sm:pt-14 pb-12 px-4 mt-0 relative overflow-hidden font-sans">
         {/* Ambient pulse */}
         <div className="absolute bottom-0 right-0 w-[450px] h-[450px] bg-white/[0.015] rounded-full blur-[160px] pointer-events-none"></div>
 
@@ -514,8 +496,8 @@ export default function CustomerLayout() {
             <ul className="space-y-4 text-sm tracking-wide text-zinc-200 font-normal font-sans">
               <li className="flex items-start">
                 <MapPin className="w-5 h-5 text-white mr-3 shrink-0 mt-1" />
-                <a href="https://share.google/VGXKDMtikeDYt2Lcn" target="_blank" rel="noreferrer" className="hover:text-white transition-colors duration-300 leading-relaxed font-normal text-zinc-200 font-sans">
-                  Shop No 10, Neel Empire, Sector 25, Nerul East, Navi Mumbai, Maharashtra 400706
+                <a href="https://maps.app.goo.gl/maCnSZA5JyHEEMNv8" target="_blank" rel="noreferrer" className="hover:text-white transition-colors duration-300 leading-relaxed font-normal text-zinc-200 font-sans">
+                  1-A, Ekta Apartment, L.B.S. Marg, Mulund West, opposite Santoshimata Mandir, Mumbai, Maharashtra 400080
                 </a>
               </li>
               <li className="flex items-center">
@@ -530,16 +512,15 @@ export default function CustomerLayout() {
           </div>
         </div>
 
-        <div className="container mx-auto max-w-7xl mt-20 pt-8 border-t border-white/10 text-[10px] tracking-widest uppercase text-zinc-300 flex flex-col md:flex-row justify-between items-center font-sans font-semibold">
-          <p 
-            onClick={handleCopyrightClick}
-            onTouchStart={handleCopyrightTouch}
-            role="button"
-            tabIndex={0}
-            className="select-none text-zinc-300 cursor-pointer touch-manipulation hover:text-white outline-none active:text-white transition-colors"
+        <div className="container mx-auto max-w-7xl mt-10 sm:mt-14 pt-6 border-t border-white/10 text-[10px] tracking-widest uppercase text-zinc-300 flex flex-col md:flex-row justify-between items-center font-sans font-semibold">
+          <button 
+            type="button"
+            onClick={handleCopyrightTap}
+            onTouchEnd={handleCopyrightTap}
+            className="select-none text-zinc-300 cursor-pointer touch-manipulation hover:text-white outline-none active:text-white transition-colors bg-transparent border-0 p-0 text-left text-[10px] tracking-widest uppercase font-sans font-semibold"
           >
             &copy; 1986 - {new Date().getFullYear()} Bombay Motors. 40+ Years of Excellence in Mulund, Mumbai.
-          </p>
+          </button>
           <div className="flex space-x-6 mt-4 md:mt-0 text-zinc-300 font-sans">
             <a href="#" className="hover:text-white">Privacy</a>
             <a href="#" className="hover:text-white flex items-center">Terms</a>

@@ -214,7 +214,7 @@ export default function Home() {
       )}
 
       {/* Showroom & Contact Section with Google Maps Link */}
-      <section id="contact" className="py-12 sm:py-20 flex flex-col justify-center items-center bg-transparent border-t border-white/10 relative overflow-hidden z-10 scroll-mt-20">
+      <section id="contact" className="pt-10 pb-4 sm:pt-16 sm:pb-8 flex flex-col justify-center items-center bg-transparent border-t border-white/10 relative overflow-hidden z-10 scroll-mt-20">
         <div className="w-full max-w-4xl flex flex-col justify-center px-4 sm:px-6 text-center relative z-10">
           <span className="text-zinc-300 tracking-[0.25em] uppercase text-[10px] sm:text-xs font-bold mb-1.5 sm:mb-2 block font-sans">Showroom Location</span>
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-cinzel text-white font-bold mb-8 sm:mb-12 tracking-wide uppercase">Visit Bombay Motors</h2>
@@ -226,12 +226,12 @@ export default function Home() {
               </div>
               <h3 className="font-cinzel tracking-widest text-[11px] sm:text-xs uppercase text-white mb-2 sm:mb-3 font-bold">Showroom Address</h3>
               <p className="text-zinc-200 text-xs sm:text-sm leading-relaxed tracking-wide font-normal font-sans">
-                Shop No 10, Neel Empire,<br/>
-                Sector 25, Nerul East,<br/>
-                Navi Mumbai, Maharashtra 400706
+                1-A, Ekta Apartment, L.B.S. Marg,<br/>
+                opposite Santoshimata Mandir, Mulund West,<br/>
+                Mumbai, Maharashtra 400080
               </p>
               <a 
-                href="https://share.google/VGXKDMtikeDYt2Lcn" 
+                href="https://maps.app.goo.gl/maCnSZA5JyHEEMNv8" 
                 target="_blank" 
                 rel="noreferrer" 
                 className="mt-4 sm:mt-6 text-white hover:text-zinc-300 text-[11px] sm:text-xs tracking-widest uppercase font-sans border-b border-white/40 hover:border-white pb-0.5 transition-all inline-flex items-center gap-1.5 font-bold"
