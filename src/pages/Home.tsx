@@ -23,13 +23,13 @@ export default function Home() {
         <meta name="twitter:card" content="summary_large_image" />
       </Helmet>
 
-      {/* Hero Space - Minimalist Hero with Flanking Action Buttons */}
-      <section className="relative min-h-[calc(100vh-5rem)] sm:min-h-[calc(100vh-5.5rem)] flex flex-col items-center justify-end pb-80 sm:pb-56 md:pb-56 overflow-hidden px-4 sm:px-8 md:px-16 text-center z-20 pointer-events-none">
+      {/* Hero Space - Full Viewport Fold with Centered Action Buttons */}
+      <section className="relative h-[calc(100dvh-4.5rem)] sm:h-[calc(100dvh-5rem)] min-h-[520px] flex flex-col items-center justify-center py-12 sm:py-16 overflow-hidden px-4 sm:px-8 md:px-16 text-center z-20 pointer-events-none">
         
-        <div className="w-full max-w-[345px] sm:max-w-xl md:max-w-6xl mx-auto flex flex-row items-center justify-center md:justify-between gap-4 sm:gap-6 md:gap-8 pointer-events-auto">
+        <div className="w-full max-w-xl md:max-w-3xl mx-auto flex flex-row items-center justify-center gap-4 sm:gap-6 md:gap-8 pointer-events-auto">
           
           {/* Browse Inventory: Positioned with halo ring */}
-          <div className="flex justify-center md:justify-start">
+          <div className="flex justify-center">
             <Link 
               to="/inventory" 
               className="flex items-center justify-center w-[145px] sm:w-[170px] md:w-[190px] h-[38px] sm:h-[44px] md:h-[48px] bg-white border border-white text-black font-sans font-bold tracking-wider uppercase text-[9.5px] sm:text-xs rounded-full ring-2 ring-white/60 ring-offset-2 ring-offset-black/80 whitespace-nowrap transition-all duration-300 shadow-[0_4px_25px_rgba(255,255,255,0.35)] hover:shadow-[0_8px_35px_rgba(255,255,255,0.6)] hover:ring-white hover:bg-zinc-100 hover:scale-105 active:scale-95"
@@ -39,7 +39,7 @@ export default function Home() {
           </div>
 
           {/* Contact Us: Positioned with matching high-contrast halo ring & identical dimensions */}
-          <div className="flex justify-center md:justify-end">
+          <div className="flex justify-center">
             <a 
               href="#contact" 
               className="flex items-center justify-center w-[145px] sm:w-[170px] md:w-[190px] h-[38px] sm:h-[44px] md:h-[48px] bg-black/60 border border-white/40 text-white font-sans font-bold tracking-wider uppercase text-[9.5px] sm:text-xs rounded-full ring-2 ring-white/60 ring-offset-2 ring-offset-black/80 backdrop-blur-xl whitespace-nowrap transition-all duration-300 hover:scale-105 hover:ring-white hover:bg-white hover:text-black active:scale-95 shadow-[0_4px_25px_rgba(0,0,0,0.6)]"
@@ -51,9 +51,11 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Featured Collection Section (Directly after Hero) */}
-      {featuredCars.length > 0 && (
-        <section className="py-12 sm:py-20 bg-transparent relative z-10 border-t border-white/10">
+      {/* Main Content Area - Sits Below the Fold with Opaque Showroom Backdrop */}
+      <div className="relative z-20 bg-[#070709] border-t border-white/10 shadow-[0_-20px_50px_rgba(7,7,9,0.95)]">
+        {/* Featured Collection Section */}
+        {featuredCars.length > 0 && (
+          <section className="py-12 sm:py-20 bg-transparent relative z-10">
           <div className="container mx-auto max-w-7xl px-4 sm:px-6">
             
             {/* Header Row */}
@@ -321,6 +323,7 @@ export default function Home() {
           </div>
         </div>
       </section>
+      </div>
     </div>
   );
 }

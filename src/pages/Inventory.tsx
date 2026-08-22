@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { formatPrice } from '../data/mockData';
+import { formatPrice, BODY_TYPES } from '../data/mockData';
 import { Search, Filter, Car, Gauge, Fuel, Cog, Instagram } from 'lucide-react';
 import { useVehicles } from '../context/VehicleContext';
 
@@ -23,6 +23,7 @@ export default function Inventory() {
   ];
   const [budgetIndex, setBudgetIndex] = useState(BUDGET_OPTIONS.length - 1);
   const [minYear, setMinYear] = useState<number | null>(null);
+  const [selectedBodyTypes, setSelectedBodyTypes] = useState<string[]>([]);
   const [selectedOwners, setSelectedOwners] = useState<string[]>([]);
   const [selectedTransmissions, setSelectedTransmissions] = useState<string[]>([]);
   const [maxMileage, setMaxMileage] = useState<number | null>(null);
@@ -47,7 +48,8 @@ export default function Inventory() {
       result = result.filter(car => 
         car.make.toLowerCase().includes(searchTerm.toLowerCase()) || 
         car.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (car.variant && car.variant.toLowerCase().includes(searchTerm.toLowerCase()))
+        (car.variant && car.variant.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (car.bodyType && car.bodyType.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
     
@@ -60,6 +62,18 @@ export default function Inventory() {
     // Min Year filter
     if (minYear !== null) {
       result = result.filter(car => Number(car.year) >= minYear);
+    }
+
+    // Body Type filter
+    if (selectedBodyTypes.length > 0) {
+      result = result.filter(car => {
+        if (!car.bodyType) return false;
+        return selectedBodyTypes.some(bt => {
+          const btStr = bt.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const carBtStr = car.bodyType?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
+          return carBtStr === btStr || carBtStr.includes(btStr) || btStr.includes(carBtStr);
+        });
+      });
     }
 
     // Owners filter
@@ -104,7 +118,11 @@ export default function Inventory() {
     }
     
     return result;
-  }, [vehicles, searchTerm, sortBy, budgetIndex, minYear, selectedOwners, selectedTransmissions, maxMileage, selectedFuelTypes]);
+  }, [vehicles, searchTerm, sortBy, budgetIndex, minYear, selectedBodyTypes, selectedOwners, selectedTransmissions, maxMileage, selectedFuelTypes]);
+
+  const toggleBodyType = (bodyType: string) => {
+    setSelectedBodyTypes(prev => prev.includes(bodyType) ? prev.filter(b => b !== bodyType) : [...prev, bodyType]);
+  };
 
   const toggleOwner = (owner: string) => {
     setSelectedOwners(prev => prev.includes(owner) ? prev.filter(o => o !== owner) : [...prev, owner]);
@@ -121,6 +139,7 @@ export default function Inventory() {
   const resetFilters = () => {
     setBudgetIndex(BUDGET_OPTIONS.length - 1);
     setMinYear(null);
+    setSelectedBodyTypes([]);
     setSelectedOwners([]);
     setSelectedTransmissions([]);
     setMaxMileage(null);
@@ -297,6 +316,44 @@ export default function Inventory() {
                   </div>
                 </div>
 
+                {/* Body Type Filter */}
+                <div>
+                  <div className="flex justify-between items-center mb-3 border-b border-white/10 pb-1.5">
+                    <h4 className="text-[10px] uppercase tracking-wider text-zinc-200 font-bold font-sans flex items-center justify-between w-full">
+                      <span>Body Type</span>
+                      {selectedBodyTypes.length > 0 && (
+                        <button 
+                          onClick={() => setSelectedBodyTypes([])} 
+                          className="text-[9px] text-zinc-400 hover:text-white uppercase font-normal lowercase tracking-normal"
+                        >
+                          clear
+                        </button>
+                      )}
+                    </h4>
+                  </div>
+
+                  {/* Body Type Quick Chips */}
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {BODY_TYPES.map((type) => {
+                      const isSelected = selectedBodyTypes.includes(type);
+                      return (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => toggleBodyType(type)}
+                          className={`px-3 py-1.5 text-[11px] font-sans rounded-xl border transition-all ${
+                            isSelected
+                              ? 'bg-white text-black border-white font-bold shadow-md'
+                              : 'bg-black/40 text-zinc-300 border-white/15 hover:border-white/40 hover:text-white'
+                          }`}
+                        >
+                          {type}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 {/* Owners */}
                 <div>
                   <h4 className="text-[10px] uppercase tracking-wider text-zinc-200 mb-4 font-bold font-sans border-b border-white/10 pb-1.5 flex items-center justify-between">
@@ -429,8 +486,15 @@ export default function Inventory() {
                             loading="lazy" 
                             className="w-full h-full object-contain bg-black/40 transition-transform duration-500 ease-out group-hover:scale-[1.05]" 
                           />
-                          <div className="absolute top-3 left-3 sm:top-4 sm:left-4 frost-pill text-white px-2.5 sm:px-3.5 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold tracking-widest font-sans shadow-sm">
-                            {car.year}
+                          <div className="absolute top-3 left-3 sm:top-4 sm:left-4 flex items-center gap-1.5 z-10">
+                            <span className="frost-pill text-white px-2.5 sm:px-3.5 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold tracking-widest font-sans shadow-sm">
+                              {car.year}
+                            </span>
+                            {car.bodyType && (
+                              <span className="frost-pill text-zinc-200 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-bold tracking-widest font-sans uppercase shadow-sm">
+                                {car.bodyType}
+                              </span>
+                            )}
                           </div>
                           {car.instagramReel && (
                             <button

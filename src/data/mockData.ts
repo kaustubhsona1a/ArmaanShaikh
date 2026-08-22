@@ -1,5 +1,9 @@
 import { Car, Fuel, Gauge, Calendar, ShieldCheck, Banknote, History, Zap, Settings, Star } from 'lucide-react';
 
+export type BodyType = 'SUV' | 'Sedan' | 'Hatchback' | 'MUV / MPV' | 'Coupe' | 'Convertible';
+
+export const BODY_TYPES: BodyType[] = ['SUV', 'Sedan', 'Hatchback', 'MUV / MPV', 'Coupe', 'Convertible'];
+
 export type Vehicle = {
   id: string;
   make: string;
@@ -10,6 +14,7 @@ export type Vehicle = {
   mileage: number;
   fuelType: 'Petrol' | 'Diesel' | 'CNG' | 'Electric';
   transmission: 'Manual' | 'Automatic';
+  bodyType?: BodyType | string;
   engine: string;
   color: string;
   ownership: string; // 1st Owner, 2nd Owner
@@ -34,6 +39,7 @@ export const MOCK_VEHICLES: Vehicle[] = [
     mileage: 4200,
     fuelType: "Petrol",
     transmission: "Automatic",
+    bodyType: "Coupe",
     engine: "4.0L Naturally Aspirated Flat-6 (518 HP)",
     color: "Lizard Green / Carbon Accent",
     ownership: "1st Owner",
@@ -55,6 +61,7 @@ export const MOCK_VEHICLES: Vehicle[] = [
     mileage: 12000,
     fuelType: "Petrol",
     transmission: "Automatic",
+    bodyType: "SUV",
     engine: "4.0L Twin-Turbo V8 (577 HP)",
     color: "Matte Obsidian Black",
     ownership: "1st Owner",
@@ -76,6 +83,7 @@ export const MOCK_VEHICLES: Vehicle[] = [
     mileage: 24000,
     fuelType: "Diesel",
     transmission: "Automatic",
+    bodyType: "SUV",
     engine: "3.0L twin-turbocharged inline-6 Diesel (346 HP)",
     color: "Belgravia Green Metallic",
     ownership: "1st Owner",

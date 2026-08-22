@@ -1,9 +1,9 @@
 import React, { useState, ChangeEvent, FormEvent, useEffect, useRef } from 'react';
-import { UploadCloud, X, Plus } from 'lucide-react';
+import { UploadCloud, X, Plus, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useVehicles } from '../../context/VehicleContext';
-import { Vehicle } from '../../data/mockData';
-import { uploadImageToStorage, deleteImagesFromStorage } from '../../lib/supabase';
+import { Vehicle, BODY_TYPES } from '../../data/mockData';
+import { uploadMultipleImagesToStorage, deleteImagesFromStorage } from '../../lib/supabase';
 
 export default function AdminAddVehicle() {
   const { vehicles, addVehicle, updateVehicle } = useVehicles();
@@ -29,6 +29,8 @@ export default function AdminAddVehicle() {
   }, []);
 
   const [isCompressing, setIsCompressing] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
+  const [uploadNotice, setUploadNotice] = useState<{ type: 'success' | 'error' | 'warning'; message: string } | null>(null);
 
   const [formData, setFormData] = useState({
     make: '',
@@ -37,6 +39,7 @@ export default function AdminAddVehicle() {
     year: new Date().getFullYear(),
     price: '',
     registration: '',
+    bodyType: 'SUV',
     fuelType: 'Petrol',
     transmission: 'Manual',
     mileage: '',
@@ -86,6 +89,7 @@ export default function AdminAddVehicle() {
           year: vehicle.year,
           price: vehicle.price.toString(),
           registration: vehicle.registration || '',
+          bodyType: vehicle.bodyType || 'SUV',
           fuelType: vehicle.fuelType,
           transmission: vehicle.transmission,
           mileage: vehicle.mileage.toString(),
@@ -101,29 +105,64 @@ export default function AdminAddVehicle() {
   }, [id, isEditing, vehicles]);
 
   const handleImageUpload = async (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
+    if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files) as File[];
       setIsCompressing(true);
+      setUploadProgress({ current: 0, total: files.length });
+      setUploadNotice(null);
+
       try {
-        const promises = files.map(file => uploadImageToStorage(file, 'vehicles'));
-        const results = await Promise.all(promises);
-        
-        // Track the freshly uploaded URLs in our session array
-        sessionUploadedImages.current.push(...results);
-        
-        setImages(prev => {
-          const newImages = [...prev, ...results];
-          if (newImages.length > 20) {
-            alert('Maximum 20 images allowed per vehicle.');
-            return newImages.slice(0, 20);
+        const { successful, failed } = await uploadMultipleImagesToStorage(
+          files, 
+          'vehicles', 
+          'vehicle-images',
+          (completed, total) => {
+            setUploadProgress({ current: completed, total });
           }
-          return newImages;
+        );
+        
+        if (successful.length > 0) {
+          sessionUploadedImages.current.push(...successful);
+          setImages(prev => {
+            const newImages = [...prev, ...successful];
+            if (newImages.length > 20) {
+              setUploadNotice({
+                type: 'warning',
+                message: 'Uploaded successfully. Maximum 20 images limit reached.'
+              });
+              return newImages.slice(0, 20);
+            }
+            return newImages;
+          });
+        }
+
+        if (failed.length === 0) {
+          setUploadNotice({
+            type: 'success',
+            message: `Successfully processed and uploaded ${successful.length} photo${successful.length > 1 ? 's' : ''}.`
+          });
+        } else if (successful.length > 0 && failed.length > 0) {
+          setUploadNotice({
+            type: 'warning',
+            message: `Uploaded ${successful.length} photo(s). ${failed.length} failed (${failed.map(f => f.fileName).join(', ')}). Please retry the failed images.`
+          });
+        } else {
+          setUploadNotice({
+            type: 'error',
+            message: `Upload failed: ${failed[0]?.reason || 'Check Supabase vehicle-images storage bucket permissions.'}`
+          });
+        }
+      } catch (err: any) {
+        console.error('Failed to process image batch', err);
+        setUploadNotice({
+          type: 'error',
+          message: err?.message || 'Failed to upload images. Check connection and storage permissions.'
         });
-      } catch (err) {
-        console.error('Failed to upload images', err);
-        alert('Failed to upload some images. Ensure Supabase storage bucket "vehicle-images" exists and RLS allows inserts.');
       } finally {
         setIsCompressing(false);
+        setUploadProgress(null);
+        // Clear file input value so re-selecting same files triggers change event
+        e.target.value = '';
       }
     }
   };
@@ -164,6 +203,7 @@ export default function AdminAddVehicle() {
         year: Number(formData.year),
         price: Number(formData.price),
         mileage: Number(formData.mileage),
+        bodyType: formData.bodyType,
         fuelType: formData.fuelType as 'Petrol' | 'Diesel' | 'CNG' | 'Electric',
         transmission: formData.transmission as 'Manual' | 'Automatic',
         engine: formData.engine || 'Standard',
@@ -183,6 +223,7 @@ export default function AdminAddVehicle() {
         year: Number(formData.year),
         price: Number(formData.price),
         mileage: Number(formData.mileage),
+        bodyType: formData.bodyType,
         fuelType: formData.fuelType as 'Petrol' | 'Diesel' | 'CNG' | 'Electric',
         transmission: formData.transmission as 'Manual' | 'Automatic',
         engine: formData.engine || 'Standard',
@@ -258,6 +299,14 @@ export default function AdminAddVehicle() {
           <h2 className="text-sm font-bold font-serif text-white mb-6 border-b border-white/5 pb-2 uppercase tracking-widest">Technical Specifications</h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="space-y-2">
+              <label className="text-[10px] uppercase font-mono tracking-wider text-zinc-400 font-bold">Body Type *</label>
+              <select name="bodyType" value={formData.bodyType} onChange={handleChange} className="flex h-12 w-full items-center justify-between rounded-xl border border-white/5 bg-zinc-950 px-4 py-2 text-xs text-zinc-300 outline-none focus:border-white transition-all font-mono uppercase tracking-wider">
+                {BODY_TYPES.map(bt => (
+                  <option key={bt} value={bt} className="bg-zinc-950 text-white">{bt}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
               <label className="text-[10px] uppercase font-mono tracking-wider text-zinc-400 font-bold">Fuel Type</label>
               <select name="fuelType" value={formData.fuelType} onChange={handleChange} className="flex h-12 w-full items-center justify-between rounded-xl border border-white/5 bg-zinc-950 px-4 py-2 text-xs text-zinc-300 outline-none focus:border-white transition-all font-mono uppercase tracking-wider">
                 <option className="bg-zinc-950 text-white">Petrol</option>
@@ -298,7 +347,31 @@ export default function AdminAddVehicle() {
 
         {/* Media */}
         <div>
-          <h2 className="text-sm font-bold font-serif text-white mb-6 border-b border-white/5 pb-2 uppercase tracking-widest">Vehicle Gallery</h2>
+          <div className="flex justify-between items-center mb-6 border-b border-white/5 pb-2">
+            <h2 className="text-sm font-bold font-serif text-white uppercase tracking-widest">Vehicle Gallery</h2>
+            {isCompressing && uploadProgress && (
+              <div className="flex items-center gap-2 text-xs font-mono text-zinc-300">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                <span>Optimizing & Uploading {uploadProgress.current} of {uploadProgress.total}...</span>
+              </div>
+            )}
+          </div>
+
+          {/* Upload Status Banner */}
+          {uploadNotice && (
+            <div className={`mb-4 p-3 rounded-xl border flex items-start gap-2.5 text-xs font-mono ${
+              uploadNotice.type === 'success' ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300' :
+              uploadNotice.type === 'warning' ? 'bg-amber-950/40 border-amber-500/30 text-amber-300' :
+              'bg-rose-950/40 border-rose-500/30 text-rose-300'
+            }`}>
+              {uploadNotice.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" /> : <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />}
+              <div className="flex-grow">{uploadNotice.message}</div>
+              <button type="button" onClick={() => setUploadNotice(null)} className="text-zinc-400 hover:text-white">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
             {images.map((img, i) => (
               <div 
@@ -323,15 +396,24 @@ export default function AdminAddVehicle() {
                 </button>
               </div>
             ))}
-            <label className="border-2 border-dashed border-white/10 rounded-xl aspect-video flex flex-col items-center justify-center p-4 text-center bg-zinc-900/20 hover:bg-white/5 text-zinc-400 hover:text-white transition-all cursor-pointer font-mono text-xs">
-              <UploadCloud className="w-8 h-8 mb-2" />
-              <span className="font-bold uppercase tracking-wider text-[10px]">
-                {isCompressing ? 'Compacting...' : 'Add Images'}
-              </span>
+            <label className={`border-2 border-dashed border-white/10 rounded-xl aspect-video flex flex-col items-center justify-center p-4 text-center bg-zinc-900/20 hover:bg-white/5 text-zinc-400 hover:text-white transition-all cursor-pointer font-mono text-xs ${isCompressing ? 'opacity-60 cursor-not-allowed' : ''}`}>
+              {isCompressing ? (
+                <>
+                  <Loader2 className="w-8 h-8 mb-2 animate-spin text-white" />
+                  <span className="font-bold uppercase tracking-wider text-[10px]">
+                    {uploadProgress ? `${uploadProgress.current}/${uploadProgress.total} Uploading` : 'Processing...'}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <UploadCloud className="w-8 h-8 mb-2" />
+                  <span className="font-bold uppercase tracking-wider text-[10px]">Add Images</span>
+                </>
+              )}
               <input type="file" multiple accept="image/*" disabled={isCompressing} onChange={handleImageUpload} className="hidden" />
             </label>
           </div>
-          <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider mt-2">You can select multiple images to upload. Drag and drop images to reorder them. The first image will be used as the thumbnail.</p>
+          <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider mt-2">You can select multiple images to upload. Images are automatically compressed & optimized. Drag and drop images to reorder them.</p>
         </div>
 
         {/* Instagram Reel Link */}

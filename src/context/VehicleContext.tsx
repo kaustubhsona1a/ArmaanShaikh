@@ -140,6 +140,7 @@ export function toDbPayload(v: any) {
     mileage: typeof v.mileage === 'number' ? v.mileage : Number(v.mileage || 0),
     fuel_type: v.fuelType || v.fuel_type || 'Petrol',
     transmission: v.transmission || 'Automatic',
+    body_type: v.bodyType || v.body_type || 'SUV',
     engine: v.engine || null,
     color: v.color || null,
     ownership: v.ownership || null,
@@ -223,6 +224,7 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
         // Map database snake_case columns to React camelCase properties symmetrically
         const fuelType = v.fuelType || v.fuel_type || 'Petrol';
         const transmission = v.transmission || 'Automatic';
+        const bodyType = v.bodyType || v.body_type || 'SUV';
         const status = v.status || 'Available';
         const deleted = v.deleted !== undefined ? v.deleted : (v.is_deleted !== undefined ? v.is_deleted : false);
         const updatedAt = v.updatedAt || (v.updated_at ? new Date(v.updated_at).getTime() : Date.now());
@@ -279,6 +281,7 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
           year,
           price,
           mileage,
+          bodyType,
           fuelType,
           transmission,
           engine,
@@ -538,10 +541,11 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
       const dbPayload = toDbPayload(cleaned);
       console.log('[SUPABASE INSERT] Inserting vehicle:', targetId, dbPayload);
       let { data, error } = await supabase.from('vehicles').insert([dbPayload]).select();
-      if (error && (error.message?.includes('instagram_reel') || error.code === '42703')) {
-        console.warn('[SUPABASE INSERT RETRY] Column "instagram_reel" not supported on vehicles table. Retrying with features-fallback list...', error);
+      if (error && (error.message?.includes('body_type') || error.message?.includes('instagram_reel') || error.code === '42703')) {
+        console.warn('[SUPABASE INSERT RETRY] Missing column on vehicles table. Retrying with fallback payload...', error);
         const retryPayload = { ...dbPayload };
-        delete retryPayload.instagram_reel;
+        if (error.message?.includes('body_type')) delete (retryPayload as any).body_type;
+        if (error.message?.includes('instagram_reel')) delete (retryPayload as any).instagram_reel;
         const retryQuery = await supabase.from('vehicles').insert([retryPayload]).select();
         data = retryQuery.data;
         error = retryQuery.error;
@@ -583,10 +587,11 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
       const dbPayload = toDbPayload(cleaned);
       console.log('[SUPABASE UPDATE] Updating vehicle:', targetId, dbPayload);
       let { data, error } = await supabase.from('vehicles').update(dbPayload).eq('id', targetId).select();
-      if (error && (error.message?.includes('instagram_reel') || error.code === '42703')) {
-        console.warn('[SUPABASE UPDATE RETRY] Column "instagram_reel" not supported on vehicles table. Retrying with features-fallback list...', error);
+      if (error && (error.message?.includes('body_type') || error.message?.includes('instagram_reel') || error.code === '42703')) {
+        console.warn('[SUPABASE UPDATE RETRY] Missing column on vehicles table. Retrying with fallback payload...', error);
         const retryPayload = { ...dbPayload };
-        delete retryPayload.instagram_reel;
+        if (error.message?.includes('body_type')) delete (retryPayload as any).body_type;
+        if (error.message?.includes('instagram_reel')) delete (retryPayload as any).instagram_reel;
         const retryQuery = await supabase.from('vehicles').update(retryPayload).eq('id', targetId).select();
         data = retryQuery.data;
         error = retryQuery.error;

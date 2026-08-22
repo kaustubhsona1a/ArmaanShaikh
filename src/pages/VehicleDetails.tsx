@@ -264,6 +264,12 @@ export default function VehicleDetails() {
               <p className={`${isMobile ? 'text-[9px]' : 'text-[11px]'} tracking-wider uppercase text-zinc-300 mb-1 font-semibold font-sans`}>Fuel Type</p>
               <p className="text-white font-bold text-xs sm:text-sm md:text-base tracking-wide uppercase font-sans">{car.fuelType}</p>
             </div>
+            {car.bodyType && (
+              <div className={`frost-card rounded-xl ${isMobile ? 'p-2.5' : 'p-4'}`}>
+                <p className={`${isMobile ? 'text-[9px]' : 'text-[11px]'} tracking-wider uppercase text-zinc-300 mb-1 font-semibold font-sans`}>Body Type</p>
+                <p className="text-white font-bold text-xs sm:text-sm md:text-base tracking-wide uppercase font-sans">{car.bodyType}</p>
+              </div>
+            )}
             <div className={`frost-card rounded-xl ${isMobile ? 'p-2.5' : 'p-4'}`}>
               <p className={`${isMobile ? 'text-[9px]' : 'text-[11px]'} tracking-wider uppercase text-zinc-300 mb-1 font-semibold font-sans`}>Transmission</p>
               <p className="text-white font-bold text-xs sm:text-sm md:text-base tracking-wide uppercase font-sans">{car.transmission}</p>

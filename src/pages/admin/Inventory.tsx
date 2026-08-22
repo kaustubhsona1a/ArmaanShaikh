@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import { formatPrice, Vehicle } from '../../data/mockData';
+import { formatPrice, Vehicle, BODY_TYPES } from '../../data/mockData';
 import { Search, Plus, Edit, Trash2, AlertTriangle } from 'lucide-react';
 import { useVehicles } from '../../context/VehicleContext';
 
@@ -9,12 +9,14 @@ export default function AdminInventory() {
   const { vehicles, updateVehicle, removeVehicle } = useVehicles();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Statuses');
+  const [bodyTypeFilter, setBodyTypeFilter] = useState('All Body Types');
   const [carToDelete, setCarToDelete] = useState<Vehicle | null>(null);
   
   const filteredVehicles = vehicles.filter(v => {
-    const matchesSearch = (v.make + ' ' + v.model + ' ' + (v.registration || '')).toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (v.make + ' ' + v.model + ' ' + (v.bodyType || '') + ' ' + (v.registration || '')).toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'All Statuses' || v.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesBodyType = bodyTypeFilter === 'All Body Types' || v.bodyType === bodyTypeFilter;
+    return matchesSearch && matchesStatus && matchesBodyType;
   });
 
   const handleDeleteConfirm = () => {
@@ -58,6 +60,16 @@ export default function AdminInventory() {
             <option className="bg-zinc-950 text-white">Sold</option>
             <option className="bg-zinc-950 text-white">Booked</option>
           </select>
+          <select 
+            value={bodyTypeFilter} 
+            onChange={(e) => setBodyTypeFilter(e.target.value)} 
+            className="bg-zinc-900/30 border border-white/5 text-zinc-300 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-white transition-all font-mono uppercase tracking-wider"
+          >
+            <option className="bg-zinc-950 text-white">All Body Types</option>
+            {BODY_TYPES.map(bt => (
+              <option key={bt} value={bt} className="bg-zinc-950 text-white">{bt}</option>
+            ))}
+          </select>
         </div>
 
         {/* Desktop Table View */}
@@ -80,7 +92,7 @@ export default function AdminInventory() {
                       <img src={car.images?.[0] || "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800"} alt="" className="w-16 h-12 object-cover rounded-lg border border-white/5" />
                       <div>
                         <p className="font-sans font-bold text-white text-sm">{car.make} {car.model}</p>
-                        <p className="text-[10px] text-zinc-400 mt-1 uppercase tracking-wider">{car.year} • {car.fuelType}</p>
+                        <p className="text-[10px] text-zinc-400 mt-1 uppercase tracking-wider">{car.year} • {car.bodyType ? `${car.bodyType} • ` : ''}{car.fuelType}</p>
                       </div>
                     </div>
                   </td>
@@ -129,7 +141,7 @@ export default function AdminInventory() {
                 />
                 <div className="min-w-0 flex-1">
                   <p className="font-sans font-extrabold text-white text-sm truncate">{car.make} {car.model}</p>
-                  <p className="text-[10px] text-zinc-400 mt-0.5 font-mono uppercase tracking-wider">{car.year} • {car.fuelType}</p>
+                  <p className="text-[10px] text-zinc-400 mt-0.5 font-mono uppercase tracking-wider">{car.year} • {car.bodyType ? `${car.bodyType} • ` : ''}{car.fuelType}</p>
                   <div className="mt-1.5 flex items-center justify-between gap-2">
                     <span className="text-[10px] font-mono text-zinc-500">{car.registration || "N/A"}</span>
                     <span className="text-xs font-sans font-bold text-white">{formatPrice(car.price)}</span>
