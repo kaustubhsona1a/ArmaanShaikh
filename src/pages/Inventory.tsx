@@ -485,6 +485,9 @@ export default function Inventory() {
                             alt={`${car.make} ${car.model}`} 
                             loading="lazy" 
                             className="w-full h-full object-contain bg-black/40 transition-transform duration-500 ease-out group-hover:scale-[1.05]" 
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800";
+                            }}
                           />
                           <div className="absolute top-3 left-3 sm:top-4 sm:left-4 flex items-center gap-1.5 z-10">
                             <span className="frost-pill text-white px-2.5 sm:px-3.5 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold tracking-widest font-sans shadow-sm">

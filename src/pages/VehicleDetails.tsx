@@ -209,16 +209,31 @@ export default function VehicleDetails() {
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         >
-          <img src={car.images?.[activeImage] || "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800"} alt={car.make} className="w-full h-full object-contain transition-all duration-500 opacity-95 group-hover:opacity-100" />
+          <img 
+            src={car.images?.[activeImage] || "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800"} 
+            alt={car.make} 
+            className="w-full h-full object-contain transition-all duration-500 opacity-95 group-hover:opacity-100" 
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800";
+            }}
+          />
         </div>
         <div className={`flex overflow-x-auto pb-2 custom-scrollbar ${isMobile ? 'gap-2' : 'gap-4'}`}>
           {(car.images || []).map((img, i) => (
             <button 
-              key={img} 
+              key={`${img.slice(0, 32)}-${i}`} 
               onClick={() => setActiveImage(i)}
               className={`flex-shrink-0 overflow-hidden rounded-xl border transition-all duration-300 ${isMobile ? 'w-20 h-15 sm:w-24 sm:h-18' : 'w-32 h-24'} ${activeImage === i ? 'border-white scale-[1.02] opacity-100 shadow-md shadow-white/20' : 'border-white/20 opacity-60 hover:opacity-100'}`}
             >
-              <img src={img} alt="Thumbnail" loading="lazy" className="w-full h-full object-cover" />
+              <img 
+                src={img} 
+                alt={`Thumbnail ${i + 1}`} 
+                loading="lazy" 
+                className="w-full h-full object-cover" 
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800";
+                }}
+              />
             </button>
           ))}
           
@@ -497,6 +512,9 @@ export default function VehicleDetails() {
               alt={`Fullscreen ${car.make} ${car.model}`} 
               className="max-w-full max-h-full object-contain cursor-default select-none transition-all duration-300"
               onClick={(e) => e.stopPropagation()}
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800";
+              }}
             />
 
             {/* Right navigation overlay button */}

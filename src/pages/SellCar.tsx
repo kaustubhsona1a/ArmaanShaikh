@@ -1,7 +1,6 @@
 import React, { useState, FormEvent, useRef, DragEvent, ChangeEvent } from 'react';
 import { useVehicles } from '../context/VehicleContext';
-import { uploadImageToStorage } from '../lib/supabase';
-import imageCompression from 'browser-image-compression';
+import { uploadMultipleImagesToStorage } from '../lib/supabase';
 import { Camera, Image as ImageIcon, Upload, X, Loader2 } from 'lucide-react';
 
 export default function SellCar() {
@@ -68,38 +67,10 @@ export default function SellCar() {
   };
 
   const handleImageUploads = async (files: File[]): Promise<string[]> => {
-    const urls: string[] = [];
-    for (const file of files) {
-      try {
-        const path = `leads/l_${Date.now()}`;
-        // Attempt regular storage upload
-        const url = await uploadImageToStorage(file, path, 'vehicle-images');
-        urls.push(url);
-        console.log('[LEAD UPLOAD SUCCESS]', url);
-      } catch (err) {
-        console.warn('[LEAD STORAGE UPLOAD FAIL] Storage bucket upload rejected/policy restricted. Using high-efficiency local Base64 compression:', err);
-        try {
-          // Efficient compressed webp fallback
-          const options = {
-            maxSizeMB: 0.08, // Target ~80kb budget limit to conserve database text spaces safely
-            maxWidthOrHeight: 800,
-            useWebWorker: true,
-            fileType: 'image/webp'
-          };
-          const compressedBlob = await imageCompression(file, options);
-          const base64Url = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(compressedBlob);
-          });
-          urls.push(base64Url);
-        } catch (compressErr) {
-          console.error('[LEAD EMBED ERROR] Failed fallback base64 converter:', compressErr);
-        }
-      }
-    }
-    return urls;
+    if (files.length === 0) return [];
+    const path = `leads/l_${Date.now()}`;
+    const { successful } = await uploadMultipleImagesToStorage(files, path, 'vehicle-images');
+    return successful;
   };
 
   const handleSubmit = async (e: FormEvent) => {

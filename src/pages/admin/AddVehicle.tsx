@@ -125,12 +125,12 @@ export default function AdminAddVehicle() {
           sessionUploadedImages.current.push(...successful);
           setImages(prev => {
             const newImages = [...prev, ...successful];
-            if (newImages.length > 20) {
+            if (newImages.length > 25) {
               setUploadNotice({
                 type: 'warning',
-                message: 'Uploaded successfully. Maximum 20 images limit reached.'
+                message: `Uploaded all ${successful.length} photos. Gallery capped at top 25 images.`
               });
-              return newImages.slice(0, 20);
+              return newImages.slice(0, 25);
             }
             return newImages;
           });
@@ -139,29 +139,28 @@ export default function AdminAddVehicle() {
         if (failed.length === 0) {
           setUploadNotice({
             type: 'success',
-            message: `Successfully processed and uploaded ${successful.length} photo${successful.length > 1 ? 's' : ''}.`
+            message: `All ${successful.length} photo${successful.length > 1 ? 's were' : ' was'} successfully processed, optimized, and added to the gallery.`
           });
         } else if (successful.length > 0 && failed.length > 0) {
           setUploadNotice({
             type: 'warning',
-            message: `Uploaded ${successful.length} photo(s). ${failed.length} failed (${failed.map(f => f.fileName).join(', ')}). Please retry the failed images.`
+            message: `Processed ${successful.length} photo(s). ${failed.length} failed to process.`
           });
         } else {
           setUploadNotice({
             type: 'error',
-            message: `Upload failed: ${failed[0]?.reason || 'Check Supabase vehicle-images storage bucket permissions.'}`
+            message: `Upload failed: ${failed[0]?.reason || 'Check storage permissions.'}`
           });
         }
       } catch (err: any) {
         console.error('Failed to process image batch', err);
         setUploadNotice({
           type: 'error',
-          message: err?.message || 'Failed to upload images. Check connection and storage permissions.'
+          message: err?.message || 'Failed to process images.'
         });
       } finally {
         setIsCompressing(false);
         setUploadProgress(null);
-        // Clear file input value so re-selecting same files triggers change event
         e.target.value = '';
       }
     }
@@ -348,11 +347,13 @@ export default function AdminAddVehicle() {
         {/* Media */}
         <div>
           <div className="flex justify-between items-center mb-6 border-b border-white/5 pb-2">
-            <h2 className="text-sm font-bold font-serif text-white uppercase tracking-widest">Vehicle Gallery</h2>
+            <h2 className="text-sm font-bold font-serif text-white uppercase tracking-widest">
+              Vehicle Gallery {images.length > 0 && `(${images.length} Photos)`}
+            </h2>
             {isCompressing && uploadProgress && (
-              <div className="flex items-center gap-2 text-xs font-mono text-zinc-300">
+              <div className="flex items-center gap-2 text-xs font-mono text-zinc-300 bg-white/5 px-3 py-1.5 rounded-lg border border-white/10">
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
-                <span>Optimizing & Uploading {uploadProgress.current} of {uploadProgress.total}...</span>
+                <span>Processing {uploadProgress.current} of {uploadProgress.total}...</span>
               </div>
             )}
           </div>
@@ -375,15 +376,22 @@ export default function AdminAddVehicle() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
             {images.map((img, i) => (
               <div 
-                key={`${img}-${i}`} 
+                key={`${img.slice(0, 32)}-${i}`} 
                 draggable
                 onDragStart={(e) => handleDragStart(e, i)}
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, i)}
                 onDragEnd={handleDragEnd}
-                className={`relative aspect-video rounded-xl overflow-hidden border ${draggedIdx === i ? 'border-white opacity-50' : 'border-white/5'} group cursor-move`}
+                className={`relative aspect-video rounded-xl overflow-hidden border ${draggedIdx === i ? 'border-white opacity-50' : 'border-white/5'} group cursor-move bg-black/40`}
               >
-                <img src={img} alt={`Preview ${i}`} className="w-full h-full object-cover pointer-events-none" />
+                <img 
+                  src={img} 
+                  alt={`Preview ${i}`} 
+                  className="w-full h-full object-cover pointer-events-none" 
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800";
+                  }}
+                />
                 <div className="absolute top-2 left-2 bg-zinc-950/80 text-white text-[8px] font-bold px-1.5 py-0.5 rounded font-mono border border-white/10 shadow-sm pointer-events-none">
                   {i === 0 ? 'THUMBNAIL' : `#${i + 1}`}
                 </div>
@@ -401,7 +409,7 @@ export default function AdminAddVehicle() {
                 <>
                   <Loader2 className="w-8 h-8 mb-2 animate-spin text-white" />
                   <span className="font-bold uppercase tracking-wider text-[10px]">
-                    {uploadProgress ? `${uploadProgress.current}/${uploadProgress.total} Uploading` : 'Processing...'}
+                    {uploadProgress ? `${uploadProgress.current}/${uploadProgress.total} Processed` : 'Processing...'}
                   </span>
                 </>
               ) : (

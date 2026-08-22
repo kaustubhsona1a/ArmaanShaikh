@@ -88,6 +88,9 @@ export default function Home() {
                         src={car.images[0] || "https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?auto=format&fit=crop&q=80&w=800"} 
                         alt={`${car.make} ${car.model}`}
                         className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105" 
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?auto=format&fit=crop&q=80&w=800";
+                        }}
                       />
                       
                       {/* Year Badge (Top-Left) */}
