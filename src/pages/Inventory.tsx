@@ -490,11 +490,6 @@ export default function Inventory() {
                             <span className="frost-pill text-white px-2.5 sm:px-3.5 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold tracking-widest font-sans shadow-sm">
                               {car.year}
                             </span>
-                            {car.bodyType && (
-                              <span className="frost-pill text-zinc-200 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-bold tracking-widest font-sans uppercase shadow-sm">
-                                {car.bodyType}
-                              </span>
-                            )}
                           </div>
                           {car.instagramReel && (
                             <button
