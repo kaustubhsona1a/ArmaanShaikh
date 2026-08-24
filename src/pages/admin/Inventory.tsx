@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { formatPrice, Vehicle, BODY_TYPES } from '../../data/mockData';
 import { Search, Plus, Edit, Trash2, AlertTriangle } from 'lucide-react';
 import { useVehicles } from '../../context/VehicleContext';
+import { SmartImage } from '../../components/SmartImage';
 
 export default function AdminInventory() {
   const { vehicles, updateVehicle, removeVehicle } = useVehicles();
@@ -89,7 +90,14 @@ export default function AdminInventory() {
                 <tr key={car.id} className="hover:bg-white/5 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center space-x-4">
-                      <img src={car.images?.[0] || "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800"} alt="" className="w-16 h-12 object-cover rounded-lg border border-white/5" />
+                      <div className="w-16 h-12 rounded-lg border border-white/5 overflow-hidden shrink-0">
+                        <SmartImage 
+                          src={car.images?.[0] || "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800"} 
+                          alt="" 
+                          fallbackSrc="https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800"
+                          className="w-full h-full object-cover" 
+                        />
+                      </div>
                       <div>
                         <p className="font-sans font-bold text-white text-sm">{car.make} {car.model}</p>
                         <p className="text-[10px] text-zinc-400 mt-1 uppercase tracking-wider">{car.year} • {car.bodyType ? `${car.bodyType} • ` : ''}{car.fuelType}</p>
@@ -134,11 +142,14 @@ export default function AdminInventory() {
           {filteredVehicles.map(car => (
             <div key={car.id} className="p-4 flex flex-col space-y-4">
               <div className="flex space-x-4 items-start">
-                <img 
-                  src={car.images?.[0] || "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800"} 
-                  alt="" 
-                  className="w-20 h-16 object-cover rounded-lg border border-white/5 shrink-0" 
-                />
+                <div className="w-20 h-16 rounded-lg border border-white/5 overflow-hidden shrink-0">
+                  <SmartImage 
+                    src={car.images?.[0] || "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800"} 
+                    alt="" 
+                    fallbackSrc="https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800"
+                    className="w-full h-full object-cover" 
+                  />
+                </div>
                 <div className="min-w-0 flex-1">
                   <p className="font-sans font-extrabold text-white text-sm truncate">{car.make} {car.model}</p>
                   <p className="text-[10px] text-zinc-400 mt-0.5 font-mono uppercase tracking-wider">{car.year} • {car.bodyType ? `${car.bodyType} • ` : ''}{car.fuelType}</p>

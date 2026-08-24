@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useVehicles, sanitizeHeroImage } from '../../context/VehicleContext';
 import { UploadCloud, Trash2, Plus, Image as ImageIcon, Link as LinkIcon, AlertCircle, Wifi, WifiOff, Check } from 'lucide-react';
 import { uploadImageToStorage, cleanupLegacyImageVariants, supabase } from '../../lib/supabase';
+import { SmartImage } from '../../components/SmartImage';
 
 export default function AdminSettings() {
   const { siteConfig, updateSiteConfig } = useVehicles();
@@ -321,7 +322,7 @@ export default function AdminSettings() {
                 <div className="grid grid-cols-2 gap-4 max-h-[300px] overflow-y-auto pr-1">
                   {(siteConfig.clientDeliveries || []).map((img, idx) => (
                     <div key={idx} className="group relative rounded-xl overflow-hidden border border-white/5 bg-zinc-900/50 aspect-[4/3] shadow-inner">
-                      <img src={img} alt={`Patron Preview ${idx + 1}`} className="w-full h-full object-cover" />
+                      <SmartImage src={img} alt={`Patron Preview ${idx + 1}`} className="w-full h-full object-cover" />
                       <div className="absolute inset-0 bg-zinc-950/60 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center backdrop-blur-[1px]">
                         <button 
                           onClick={() => handleRemoveDelivery(idx)}

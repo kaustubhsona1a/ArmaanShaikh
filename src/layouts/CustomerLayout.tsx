@@ -3,6 +3,7 @@ import { MapPin, Phone, Mail, Clock, MessageCircle, Instagram, Twitter, Menu, X,
 import React, { useState } from 'react';
 import { useVehicles, sanitizeHeroImage } from '../context/VehicleContext';
 import { useAuth } from '../context/AuthContext';
+import { SmartImage } from '../components/SmartImage';
 
 let globalVideoFinished = false;
 
@@ -116,7 +117,7 @@ export default function CustomerLayout() {
 
           {/* Global Background - Showroom Backdrop with Rich Frosted Glass Ambient Theme */}
       <div className="fixed top-0 bottom-0 left-0 right-0 z-0 bg-[#070709] overflow-hidden pointer-events-none">
-        {/* Desktop Showcase Backdrop */}
+        {/* Showcase Backdrop */}
         {showVideo ? (
           <video 
             ref={desktopVideoRef}
@@ -131,35 +132,12 @@ export default function CustomerLayout() {
           />
         ) : (
           siteConfig.homeHeroImage && (
-            <img 
+            <SmartImage 
               src={siteConfig.homeHeroImage}
-              alt="Showroom Desktop Backdrop"
-              className={`hidden md:block absolute inset-0 w-full h-full object-cover object-top transition-opacity duration-500 ease-in-out ${
-                isFading ? 'opacity-0' : 'opacity-100'
-              }`}
-            />
-          )
-        )}
-        
-        {/* Mobile-specific Showcase Backdrop */}
-        {showMobileVideo ? (
-          <video 
-            ref={mobileVideoRef}
-            src={siteConfig.homeHeroMobileVideo || siteConfig.homeHeroVideo}
-            className={`block md:hidden absolute inset-0 w-full h-full object-cover object-top transition-opacity duration-500 ease-in-out ${
-              isFading ? 'opacity-0' : 'opacity-100'
-            }`}
-            muted
-            playsInline
-            onEnded={handleVideoEnded}
-            onLoadedMetadata={handleLoadedMetadata}
-          />
-        ) : (
-          (siteConfig.homeHeroMobileImage || siteConfig.homeHeroImage) && (
-            <img 
-              src={siteConfig.homeHeroMobileImage || siteConfig.homeHeroImage}
-              alt="Showroom Mobile Backdrop"
-              className={`block md:hidden absolute inset-0 w-full h-full object-cover object-top transition-opacity duration-500 ease-in-out ${
+              alt="Showroom Backdrop"
+              loading="eager"
+              decoding="async"
+              className={`absolute inset-0 w-full h-full object-cover object-top transition-opacity duration-500 ease-in-out ${
                 isFading ? 'opacity-0' : 'opacity-100'
               }`}
             />
@@ -193,7 +171,7 @@ export default function CustomerLayout() {
             {/* Left Side: Branding Logo or Text */}
             <Link to="/" className="flex items-center shrink-0 select-none group">
               {siteConfig.logo ? (
-                <img src={siteConfig.logo} alt="Bombay Motors" className="h-9 sm:h-11 md:h-12 w-auto max-w-[200px] object-contain transition-all duration-300 group-hover:scale-105" />
+                <SmartImage src={siteConfig.logo} alt="Bombay Motors" className="h-9 sm:h-11 md:h-12 w-auto max-w-[200px] object-contain transition-all duration-300 group-hover:scale-105" />
               ) : (
                 <div className="flex flex-col">
                   <span className="text-lg sm:text-xl md:text-2xl font-cinzel font-bold tracking-[0.15em] text-white group-hover:text-zinc-300 transition-colors uppercase">
@@ -449,14 +427,10 @@ export default function CustomerLayout() {
         <div className="container mx-auto max-w-7xl grid grid-cols-1 md:grid-cols-3 gap-16 relative z-10 text-zinc-300">
           <div className="space-y-6 md:col-span-1">
             <div className="flex items-center inline-flex mb-4">
-              <img 
+              <SmartImage 
                 src={siteConfig.logo} 
                 alt="Bombay Motors" 
                 className="h-10 w-auto object-contain mr-3 max-w-[150px]" 
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                }}
               />
               <div className="hidden flex-col items-start nv-logo-text">
                 <h1 className="text-xl font-cinzel tracking-[0.18em] leading-none font-bold uppercase text-white">

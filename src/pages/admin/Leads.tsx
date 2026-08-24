@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useVehicles } from '../../context/VehicleContext';
 import { Trash2 } from 'lucide-react';
+import { SmartImage } from '../../components/SmartImage';
 
 export default function AdminLeads() {
   const { leads, updateLeadStatus, deleteLead } = useVehicles();
@@ -50,7 +51,7 @@ export default function AdminLeads() {
                                 onClick={() => setActiveImage(img)}
                                 className="block h-12 w-12 rounded-lg overflow-hidden border border-white/10 hover:border-white transition-colors bg-zinc-900 group"
                               >
-                                <img src={img} alt={`Attached doc ${idx + 1}`} className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-300" />
+                                <SmartImage src={img} alt={`Attached doc ${idx + 1}`} className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-300" />
                               </button>
                             ))}
                           </div>
@@ -117,7 +118,7 @@ export default function AdminLeads() {
                             onClick={() => setActiveImage(img)}
                             className="block h-10 w-10 rounded-lg overflow-hidden border border-white/10 bg-zinc-900 shrink-0"
                           >
-                            <img src={img} alt={`Attached doc ${idx + 1}`} className="h-full w-full object-cover" />
+                            <SmartImage src={img} alt={`Attached doc ${idx + 1}`} className="h-full w-full object-cover" />
                           </button>
                         ))}
                       </div>
@@ -244,7 +245,7 @@ export default function AdminLeads() {
             
             {/* Expanded Image Area */}
             <div className="p-4 flex items-center justify-center bg-zinc-950 min-h-[300px] max-h-[70vh] overflow-auto">
-              <img 
+              <SmartImage 
                 src={activeImage} 
                 alt="Expanded Attachment" 
                 className="max-w-full max-h-[60vh] object-contain rounded-xl select-none shadow-lg border border-white/5"

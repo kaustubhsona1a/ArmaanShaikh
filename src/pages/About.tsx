@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useVehicles } from '../context/VehicleContext';
 import { MOCK_REVIEWS } from '../data/mockData';
 import React, { useState } from 'react';
+import { SmartImage } from '../components/SmartImage';
 
 export default function About() {
   const { siteConfig } = useVehicles();
@@ -124,11 +125,11 @@ export default function About() {
       <section className="py-4 sm:py-8 bg-transparent relative z-10">
         <div className="container mx-auto max-w-7xl px-3.5 sm:px-6">
           <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl border border-white/15 aspect-[16/11] sm:aspect-[16/9] md:aspect-[21/9] w-full bg-black/60 group">
-            <img 
+            <SmartImage 
               src={heroShowcaseImage} 
               alt="Where Trust Meets Integrity - Bombay Motors Showroom" 
+              fallbackSrc="https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&q=80&w=1400"
               className="w-full h-full object-cover object-center brightness-90 group-hover:scale-[1.02] transition-all duration-700 ease-out"
-              onError={(e) => { e.currentTarget.src = "https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&q=80&w=1400" }}
             />
             {/* Gradient Overlay */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent flex flex-col justify-end p-4 sm:p-8 md:p-12 pointer-events-none">
@@ -285,11 +286,13 @@ export default function About() {
                   >
                     {/* Photo Canvas Frame with Zoom Effect */}
                     <div className="relative overflow-hidden rounded-xl bg-black/50 aspect-[4/3] w-full">
-                      <img 
+                      <SmartImage 
                         src={img} 
                         alt={`Client Delivery ${i + 1}`} 
+                        fallbackSrc="https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&q=80&w=800"
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700 ease-out"
-                        onError={(e) => { e.currentTarget.src = "https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&q=80&w=800" }}
                       />
                       
                       <div className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 frost-pill text-white text-[9px] font-bold tracking-wider uppercase px-2.5 sm:px-3 py-1 rounded-full shadow-sm select-none font-sans">
@@ -353,9 +356,10 @@ export default function About() {
               <ChevronLeft className="w-6 h-6" />
             </button>
 
-            <img 
+            <SmartImage 
               src={deliveries[activePhotoIndex]} 
               alt="Archival Patron Delivery" 
+              fallbackSrc="https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&q=80&w=800"
               className="w-full h-full object-contain max-h-[70vh] rounded-2xl shadow-2xl border border-white/20 select-none bg-black/50"
             />
 

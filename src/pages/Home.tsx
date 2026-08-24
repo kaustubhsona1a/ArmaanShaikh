@@ -3,6 +3,7 @@ import { Star, MapPin, Phone, ExternalLink, Video, Gauge, Fuel, Settings, Shield
 import { formatPrice, MOCK_REVIEWS } from '../data/mockData';
 import { useVehicles } from '../context/VehicleContext';
 import { Helmet } from 'react-helmet-async';
+import { SmartImage } from '../components/SmartImage';
 
 export default function Home() {
   const { vehicles, siteConfig } = useVehicles();
@@ -84,13 +85,11 @@ export default function Home() {
                   >
                     {/* Top Image Container with Badges */}
                     <div className="relative aspect-[4/3] rounded-xl sm:rounded-2xl overflow-hidden bg-black/80 mb-4 sm:mb-5">
-                      <img 
+                      <SmartImage 
                         src={car.images[0] || "https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?auto=format&fit=crop&q=80&w=800"} 
                         alt={`${car.make} ${car.model}`}
+                        fallbackSrc="https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?auto=format&fit=crop&q=80&w=800"
                         className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105" 
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?auto=format&fit=crop&q=80&w=800";
-                        }}
                       />
                       
                       {/* Year Badge (Top-Left) */}

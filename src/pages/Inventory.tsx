@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { formatPrice, BODY_TYPES } from '../data/mockData';
 import { Search, Filter, Car, Gauge, Fuel, Cog, Instagram } from 'lucide-react';
 import { useVehicles } from '../context/VehicleContext';
+import { SmartImage } from '../components/SmartImage';
 
 export default function Inventory() {
   const { vehicles, loading } = useVehicles();
@@ -480,14 +481,13 @@ export default function Inventory() {
                     <Link key={car.id} to={`/inventory/${car.id}`} className="group block h-full">
                       <div className="frost-card hover:-translate-y-1.5 transition-all duration-300 ease-out flex flex-col h-full overflow-hidden rounded-2xl">
                         <div className="relative aspect-[16/10] sm:aspect-video md:aspect-auto md:h-64 overflow-hidden bg-black/60">
-                          <img 
+                          <SmartImage 
                             src={car.images?.[0] || "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800"} 
                             alt={`${car.make} ${car.model}`} 
+                            fallbackSrc="https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800"
                             loading="lazy" 
+                            decoding="async"
                             className="w-full h-full object-contain bg-black/40 transition-transform duration-500 ease-out group-hover:scale-[1.05]" 
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800";
-                            }}
                           />
                           <div className="absolute top-3 left-3 sm:top-4 sm:left-4 flex items-center gap-1.5 z-10">
                             <span className="frost-pill text-white px-2.5 sm:px-3.5 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold tracking-widest font-sans shadow-sm">

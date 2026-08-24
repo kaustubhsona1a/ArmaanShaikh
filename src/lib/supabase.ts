@@ -272,10 +272,10 @@ export async function uploadImageToStorage(
   bucket: string = 'vehicle-images',
   maxRetries: number = 3
 ): Promise<string> {
-  // Step 1: Compress and optimize image to ensure ultra-fast upload & safe payload limits (<300KB)
+  // Step 1: Compress and optimize image to ensure ultra-fast upload & minimal egress bandwidth (<75KB for cars, <140KB for hero)
   const isShowcase = bucket === 'site_settings' || path.includes('site_settings') || path.includes('logo') || path.includes('hero') || path.includes('about') || path.includes('delivery');
-  const maxDim = isShowcase ? 1920 : 1600;
-  const quality = isShowcase ? 0.88 : 0.83;
+  const maxDim = isShowcase ? 1440 : 1200;
+  const quality = isShowcase ? 0.80 : 0.76;
 
   let optimizedFile = file;
   let fallbackDataUrl = '';
