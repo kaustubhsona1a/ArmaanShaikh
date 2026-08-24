@@ -118,11 +118,12 @@ export default function CustomerLayout() {
           {/* Global Background - Showroom Backdrop with Rich Frosted Glass Ambient Theme */}
       <div className="fixed top-0 bottom-0 left-0 right-0 z-0 bg-[#070709] overflow-hidden pointer-events-none">
         {/* Showcase Backdrop */}
-        {showVideo ? (
+        {/* Desktop Backdrop (Visible on md and larger screens) */}
+        {showVideo && siteConfig.homeHeroVideo ? (
           <video 
             ref={desktopVideoRef}
             src={siteConfig.homeHeroVideo}
-            className={`hidden md:block absolute inset-0 w-full h-full object-cover object-top transition-opacity duration-500 ease-in-out ${
+            className={`hidden md:block absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-500 ease-in-out ${
               isFading ? 'opacity-0' : 'opacity-100'
             }`}
             muted
@@ -134,10 +135,37 @@ export default function CustomerLayout() {
           siteConfig.homeHeroImage && (
             <SmartImage 
               src={siteConfig.homeHeroImage}
-              alt="Showroom Backdrop"
+              alt="Showroom Desktop Backdrop"
               loading="eager"
               decoding="async"
-              className={`absolute inset-0 w-full h-full object-cover object-top transition-opacity duration-500 ease-in-out ${
+              className={`hidden md:block absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-500 ease-in-out ${
+                isFading ? 'opacity-0' : 'opacity-100'
+              }`}
+            />
+          )
+        )}
+
+        {/* Mobile Backdrop (Visible on screens smaller than md) */}
+        {showMobileVideo && siteConfig.homeHeroMobileVideo ? (
+          <video 
+            ref={mobileVideoRef}
+            src={siteConfig.homeHeroMobileVideo}
+            className={`block md:hidden absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-500 ease-in-out ${
+              isFading ? 'opacity-0' : 'opacity-100'
+            }`}
+            muted
+            playsInline
+            onEnded={handleVideoEnded}
+            onLoadedMetadata={handleLoadedMetadata}
+          />
+        ) : (
+          (siteConfig.homeHeroMobileImage || siteConfig.homeHeroImage) && (
+            <SmartImage 
+              src={siteConfig.homeHeroMobileImage || siteConfig.homeHeroImage}
+              alt="Showroom Mobile Backdrop"
+              loading="eager"
+              decoding="async"
+              className={`block md:hidden absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-500 ease-in-out ${
                 isFading ? 'opacity-0' : 'opacity-100'
               }`}
             />

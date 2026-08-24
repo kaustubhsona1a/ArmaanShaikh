@@ -152,9 +152,9 @@ export default function AdminLayout() {
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex relative overflow-hidden font-sans">
       {/* Universal Background Photo alignment */}
       <div className="fixed inset-0 z-0 pointer-events-none">
-        {siteConfig.homeHeroImage && (
+        {(siteConfig.homeHeroMobileImage || siteConfig.homeHeroImage) && (
           <img 
-            src={siteConfig.homeHeroImage} 
+            src={siteConfig.homeHeroMobileImage || siteConfig.homeHeroImage} 
             className="absolute inset-0 w-full h-full object-cover opacity-[0.12] blur-[3px] scale-[1.01]"
             alt=""
           />
