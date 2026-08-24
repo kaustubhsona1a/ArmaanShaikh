@@ -125,136 +125,177 @@ export async function cleanupLegacyImageVariants(bucket: string = 'vehicle-image
   return { deletedCount, errors };
 }
 
-/**
- * Fast, resilient hardware-accelerated image optimizer
- * Downscales images to crisp HD resolution (max 1600px) and compresses to lightweight WebP/JPEG (~150KB-300KB)
- * Works reliably across mobile browsers, desktop, iPhone camera photos, and high-megapixel raw images.
- */
-export async function optimizeAndCompressImage(
-  file: File, 
-  maxDimension: number = 1600, 
-  quality: number = 0.84
-): Promise<{ file: File; dataUrl: string }> {
-  // If it's an SVG or already a tiny asset, return as-is with dataUrl
-  if (file.type.includes('svg')) {
-    const dataUrl = await fileToDataUrl(file);
-    return { file, dataUrl };
+export async function compressImage(
+  file: File,
+  options?: { maxDimension?: number; targetQuality?: number; isShowcase?: boolean }
+): Promise<File> {
+  // Skip compression for non-images or showcase branding assets if requested
+  if (
+    options?.isShowcase ||
+    (!file.type.startsWith('image/') && !file.name.match(/\.(heic|heif|jpe?g|png|webp|mov)$/i))
+  ) {
+    return file;
   }
 
-  // Attempt 1: Fast Hardware-accelerated createImageBitmap
-  if (typeof window !== 'undefined' && 'createImageBitmap' in window) {
-    try {
-      const bitmap = await createImageBitmap(file);
-      let { width, height } = bitmap;
+  // 1280px is optimal HD for retina mobile & desktop galleries
+  const maxDim = options?.maxDimension || 1280;
+  const initialQuality = options?.targetQuality || 0.75;
 
-      if (width > maxDimension || height > maxDimension) {
+  try {
+    let img: HTMLImageElement | null = new Image();
+    let objectUrl = URL.createObjectURL(file);
+    img.src = objectUrl;
+
+    const loaded = await new Promise<boolean>((resolve) => {
+      if (!img) return resolve(false);
+      img.onload = () => resolve(true);
+      img.onerror = () => resolve(false);
+      if (img.complete && img.naturalWidth) resolve(true);
+    });
+
+    // If direct HTMLImageElement load failed (e.g. raw unconverted HEIC on desktop), try fallback
+    if (!loaded || !img.naturalWidth || !img.naturalHeight) {
+      URL.revokeObjectURL(objectUrl);
+      try {
+        const fallbackOptions = {
+          maxSizeMB: 0.2, // ~200 KB target
+          maxWidthOrHeight: maxDim,
+          useWebWorker: true,
+          initialQuality: 0.75
+        };
+        const compressedBlob = await imageCompression(file, fallbackOptions);
+        return new File([compressedBlob], file.name.replace(/\.[^/.]+$/, '') + '.jpg', {
+          type: 'image/jpeg',
+          lastModified: Date.now()
+        });
+      } catch {
+        return file;
+      }
+    }
+
+    const renderToCanvas = (targetMaxDim: number) => {
+      let width = img!.naturalWidth || img!.width;
+      let height = img!.naturalHeight || img!.height;
+
+      if (width > targetMaxDim || height > targetMaxDim) {
         if (width > height) {
-          height = Math.round((height * maxDimension) / width);
-          width = maxDimension;
+          height = Math.round((height * targetMaxDim) / width);
+          width = targetMaxDim;
         } else {
-          width = Math.round((width * maxDimension) / height);
-          height = maxDimension;
+          width = Math.round((width * targetMaxDim) / height);
+          height = targetMaxDim;
         }
       }
 
       const canvas = document.createElement('canvas');
       canvas.width = width;
       canvas.height = height;
-      const ctx = canvas.getContext('2d', { alpha: false });
-      if (ctx) {
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(bitmap, 0, 0, width, height);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
 
-        const dataUrl = canvas.toDataURL('image/webp', quality);
-        const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/webp', quality));
-        
-        if (blob) {
-          const webpFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".webp", {
-            type: 'image/webp',
-            lastModified: Date.now()
-          });
-          return { file: webpFile, dataUrl };
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(img!, 0, 0, width, height);
+
+      return canvas;
+    };
+
+    const getBlob = (canvas: HTMLCanvasElement, mimeType: string, q: number): Promise<Blob | null> => {
+      return new Promise((resolve) => {
+        try {
+          canvas.toBlob((b) => resolve(b), mimeType, q);
+        } catch {
+          resolve(null);
         }
-      }
-    } catch (bitmapErr) {
-      console.warn('[IMAGE OPTIMIZER] createImageBitmap failed, trying Canvas element fallback:', bitmapErr);
+      });
+    };
+
+    let canvas = renderToCanvas(maxDim);
+    if (!canvas) {
+      URL.revokeObjectURL(objectUrl);
+      return file;
     }
+
+    // Step 1: Quality pass at 0.75
+    let jpegBlob = await getBlob(canvas, 'image/jpeg', initialQuality);
+    let webpBlob = await getBlob(canvas, 'image/webp', initialQuality);
+
+    // Step 2: If file is larger than 220KB, adaptively reduce quality to 0.68
+    if (jpegBlob && jpegBlob.size > 220 * 1024) {
+      const tighterJpeg = await getBlob(canvas, 'image/jpeg', 0.68);
+      if (tighterJpeg) jpegBlob = tighterJpeg;
+    }
+
+    if (webpBlob && webpBlob.size > 220 * 1024) {
+      const tighterWebp = await getBlob(canvas, 'image/webp', 0.68);
+      if (tighterWebp) webpBlob = tighterWebp;
+    }
+
+    // Step 3: If STILL larger than 240KB (e.g. high-detail car reflections), downscale to 1080px
+    if (jpegBlob && jpegBlob.size > 240 * 1024) {
+      const canvas1080 = renderToCanvas(1080);
+      if (canvas1080) {
+        const scaledJpeg = await getBlob(canvas1080, 'image/jpeg', 0.70);
+        if (scaledJpeg) jpegBlob = scaledJpeg;
+        const scaledWebp = await getBlob(canvas1080, 'image/webp', 0.70);
+        if (scaledWebp) webpBlob = scaledWebp;
+      }
+    }
+
+    URL.revokeObjectURL(objectUrl);
+    img = null;
+
+    let finalBlob: Blob | null = jpegBlob;
+    let finalExt = 'jpg';
+    let finalType = 'image/jpeg';
+
+    // Pick WebP if it is smaller, valid, and under 220KB; otherwise fallback to crisp JPEG
+    if (
+      webpBlob &&
+      webpBlob.type === 'image/webp' &&
+      webpBlob.size > 0 &&
+      jpegBlob &&
+      webpBlob.size <= jpegBlob.size &&
+      webpBlob.size < 220 * 1024
+    ) {
+      finalBlob = webpBlob;
+      finalExt = 'webp';
+      finalType = 'image/webp';
+    }
+
+    if (!finalBlob) {
+      return file;
+    }
+
+    const cleanBaseName = file.name.replace(/\.[^/.]+$/, '');
+    const newFileName = `${cleanBaseName}.${finalExt}`;
+    return new File([finalBlob], newFileName, { type: finalType, lastModified: Date.now() });
+  } catch (err) {
+    console.warn('[IMAGE COMPRESS ERROR] Canvas compression failed, using original file:', err);
+    return file;
   }
+}
 
-  // Attempt 2: HTMLImageElement + ObjectURL Fallback
-  try {
-    const result = await new Promise<{ file: File; dataUrl: string }>((resolve, reject) => {
-      const objectUrl = URL.createObjectURL(file);
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-
-      img.onload = () => {
-        URL.revokeObjectURL(objectUrl);
-        let { width, height } = img;
-
-        if (width > maxDimension || height > maxDimension) {
-          if (width > height) {
-            height = Math.round((height * maxDimension) / width);
-            width = maxDimension;
-          } else {
-            width = Math.round((width * maxDimension) / height);
-            height = maxDimension;
-          }
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          fileToDataUrl(file).then(dUrl => resolve({ file, dataUrl: dUrl }));
-          return;
-        }
-
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(img, 0, 0, width, height);
-
-        // Try WebP first, fallback to JPEG
-        let dataUrl = canvas.toDataURL('image/webp', quality);
-        if (!dataUrl.startsWith('data:image/webp')) {
-          dataUrl = canvas.toDataURL('image/jpeg', quality);
-        }
-
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              const ext = blob.type === 'image/webp' ? 'webp' : 'jpg';
-              const optimizedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + `.${ext}`, {
-                type: blob.type,
-                lastModified: Date.now()
-              });
-              resolve({ file: optimizedFile, dataUrl });
-            } else {
-              fileToDataUrl(file).then(dUrl => resolve({ file, dataUrl: dUrl }));
-            }
-          },
-          'image/webp',
-          quality
-        );
-      };
-
-      img.onerror = () => {
-        URL.revokeObjectURL(objectUrl);
-        // Direct conversion fallback
-        fileToDataUrl(file).then(dUrl => resolve({ file, dataUrl: dUrl })).catch(reject);
-      };
-
-      img.src = objectUrl;
-    });
-
-    return result;
-  } catch (canvasErr) {
-    console.warn('[IMAGE OPTIMIZER] Canvas fallback failed, using original file reader:', canvasErr);
+/**
+ * Fast, resilient hardware-accelerated image optimizer
+ * Downscales images to crisp HD resolution and compresses to lightweight WebP/JPEG
+ */
+export async function optimizeAndCompressImage(
+  file: File, 
+  maxDimension: number = 1280, 
+  quality: number = 0.75
+): Promise<{ file: File; dataUrl: string }> {
+  // If it's an SVG, return as-is with dataUrl
+  if (file.type.includes('svg')) {
     const dataUrl = await fileToDataUrl(file);
     return { file, dataUrl };
   }
+
+  const compressedFile = await compressImage(file, { maxDimension, targetQuality: quality });
+  const dataUrl = await fileToDataUrl(compressedFile);
+  return { file: compressedFile, dataUrl };
 }
 
 function fileToDataUrl(file: File | Blob): Promise<string> {
@@ -272,18 +313,17 @@ export async function uploadImageToStorage(
   bucket: string = 'vehicle-images',
   maxRetries: number = 3
 ): Promise<string> {
-  // Step 1: Compress and optimize image to ensure ultra-fast upload & minimal egress bandwidth (<75KB for cars, <140KB for hero)
+  // Step 1: Compress and optimize image to ensure ultra-fast upload & minimal egress bandwidth (<200KB)
   const isShowcase = bucket === 'site_settings' || path.includes('site_settings') || path.includes('logo') || path.includes('hero') || path.includes('about') || path.includes('delivery');
-  const maxDim = isShowcase ? 1440 : 1200;
-  const quality = isShowcase ? 0.80 : 0.76;
+  const maxDim = isShowcase ? 1440 : 1280;
+  const quality = isShowcase ? 0.80 : 0.75;
 
   let optimizedFile = file;
   let fallbackDataUrl = '';
 
   try {
-    const optimized = await optimizeAndCompressImage(file, maxDim, quality);
-    optimizedFile = optimized.file;
-    fallbackDataUrl = optimized.dataUrl;
+    optimizedFile = await compressImage(file, { maxDimension: maxDim, targetQuality: quality });
+    fallbackDataUrl = await fileToDataUrl(optimizedFile);
   } catch (optErr) {
     console.warn('[OPTIMIZE SKIP] Could not compress, using raw file:', optErr);
     try {
