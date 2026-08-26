@@ -6,6 +6,15 @@
 
 const CACHE_NAME = 'bm-media-cache-v1';
 const memoryBlobMap = new Map<string, string>();
+const inFlightRequests = new Map<string, Promise<string>>();
+
+/**
+ * Check if image is already cached in memory
+ */
+export function getInMemoryImageUrl(url: string | undefined): string | null {
+  if (!url) return null;
+  return memoryBlobMap.get(url) || null;
+}
 
 /**
  * Check if the URL belongs to Supabase Storage or external media that should be cached
@@ -29,36 +38,46 @@ export async function getCachedImageUrl(url: string): Promise<string> {
     return memoryBlobMap.get(url)!;
   }
 
-  // 2. Check CacheStorage API
-  if (typeof window !== 'undefined' && 'caches' in window) {
-    try {
-      const cache = await caches.open(CACHE_NAME);
-      const cachedResponse = await cache.match(url);
-
-      if (cachedResponse) {
-        const blob = await cachedResponse.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        memoryBlobMap.set(url, blobUrl);
-        return blobUrl;
-      }
-
-      // Fetch from network with cors, put into cache, and create blob url
-      const response = await fetch(url, { mode: 'cors', cache: 'force-cache' });
-      if (response.ok) {
-        // Clone response before putting into cache because response body can only be consumed once
-        await cache.put(url, response.clone());
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        memoryBlobMap.set(url, blobUrl);
-        return blobUrl;
-      }
-    } catch (err) {
-      // If CacheStorage or fetch CORS fails, fallback to direct URL
-      console.debug('[IMAGE CACHE] Fallback to direct URL:', err);
-    }
+  // 2. Check if there is already an in-flight network/cache request for this URL
+  if (inFlightRequests.has(url)) {
+    return inFlightRequests.get(url)!;
   }
 
-  return url;
+  const fetchPromise = (async () => {
+    // 3. Check CacheStorage API
+    if (typeof window !== 'undefined' && 'caches' in window) {
+      try {
+        const cache = await caches.open(CACHE_NAME);
+        const cachedResponse = await cache.match(url);
+
+        if (cachedResponse) {
+          const blob = await cachedResponse.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          memoryBlobMap.set(url, blobUrl);
+          return blobUrl;
+        }
+
+        // Fetch from network with cors, put into cache, and create blob url
+        const response = await fetch(url, { mode: 'cors', cache: 'force-cache' });
+        if (response.ok) {
+          // Clone response before putting into cache
+          await cache.put(url, response.clone());
+          const blob = await response.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          memoryBlobMap.set(url, blobUrl);
+          return blobUrl;
+        }
+      } catch (err) {
+        console.debug('[IMAGE CACHE] Fallback to direct URL:', err);
+      }
+    }
+    return url;
+  })().finally(() => {
+    inFlightRequests.delete(url);
+  });
+
+  inFlightRequests.set(url, fetchPromise);
+  return fetchPromise;
 }
 
 /**

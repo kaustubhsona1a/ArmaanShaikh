@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getCachedImageUrl, isCacheableUrl } from '../lib/imageCache';
+import { getCachedImageUrl, isCacheableUrl, getInMemoryImageUrl } from '../lib/imageCache';
 
 interface SmartImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   fallbackSrc?: string;
@@ -19,7 +19,8 @@ export const SmartImage: React.FC<SmartImageProps> = ({
   onError,
   ...props
 }) => {
-  const [currentSrc, setCurrentSrc] = useState<string>(src || fallbackSrc);
+  const initialSrc = (src && getInMemoryImageUrl(src)) || src || fallbackSrc;
+  const [currentSrc, setCurrentSrc] = useState<string>(initialSrc);
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
@@ -28,6 +29,12 @@ export const SmartImage: React.FC<SmartImageProps> = ({
 
     if (!src) {
       setCurrentSrc(fallbackSrc);
+      return;
+    }
+
+    const inMem = getInMemoryImageUrl(src);
+    if (inMem) {
+      setCurrentSrc(inMem);
       return;
     }
 
