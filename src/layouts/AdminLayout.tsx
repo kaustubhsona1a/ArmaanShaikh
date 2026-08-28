@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useVehicles, sanitizeHeroImage } from '../context/VehicleContext';
 import { supabase } from '../lib/supabase';
+import { SmartImage } from '../components/SmartImage';
 
 export default function AdminLayout() {
   const location = useLocation();
@@ -76,7 +77,7 @@ export default function AdminLayout() {
           
           <Link to="/" className="inline-flex flex-col items-center mb-8 group">
             {siteConfig.logo ? (
-              <img src={siteConfig.logo} alt="Bombay Motors" className="h-14 w-auto object-contain mb-3" />
+              <SmartImage src={siteConfig.logo} alt="Bombay Motors" className="h-14 w-auto object-contain mb-3" />
             ) : (
               <div className="w-14 h-14 bg-zinc-900 border border-zinc-800 rounded-2xl flex items-center justify-center mb-3">
                 <CarFront className="w-6 h-6 text-white" />
@@ -153,7 +154,7 @@ export default function AdminLayout() {
       {/* Universal Background Photo alignment */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         {(siteConfig.homeHeroMobileImage || siteConfig.homeHeroImage) && (
-          <img 
+          <SmartImage 
             src={siteConfig.homeHeroMobileImage || siteConfig.homeHeroImage} 
             className="absolute inset-0 w-full h-full object-cover opacity-[0.12] blur-[3px] scale-[1.01]"
             alt=""
