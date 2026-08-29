@@ -61,26 +61,27 @@ interface VehicleContextType {
 const VehicleContext = createContext<VehicleContextType | undefined>(undefined);
 
 const DEFAULT_CONFIG: SiteConfig = {
-  aboutImage: '',
-  homeHeroImage: '',
+  aboutImage: '/about.jpg',
+  homeHeroImage: '/hero-desktop.jpg',
+  homeHeroMobileImage: '/hero-mobile.jpg',
   homeHeroVideo: '',
   homeHeroMobileVideo: '',
-  homeHeroType: 'video',
+  homeHeroType: 'image',
   logo: '/logo.png',
   clientDeliveries: [],
   instagramReels: []
 };
 
 export function sanitizeHeroImage(path: string | undefined): string {
-  if (!path || path === '/backdrop.jpg' || path.trim() === '') {
-    return "";
+  if (!path || path.trim() === '') {
+    return "/hero-desktop.jpg";
   }
   return path;
 }
 
 export function sanitizeAboutImage(path: string | undefined): string {
-  if (!path || path === '/0_1000003056.jpg' || path.trim() === '') {
-    return "";
+  if (!path || path.trim() === '') {
+    return "/about.jpg";
   }
   return path;
 }
@@ -348,101 +349,124 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
             .eq('key', 'vehicles')
             .single();
 
-          const remoteVersion = metaData?.version || 1;
+          // If metadata_versions table doesn't exist or returns error, use fallback version 1
+          // BUT only re-fetch if we have no local cache at all
+          const remoteVersion = metaData?.version !== undefined ? Number(metaData.version) : (localVersion > 0 ? localVersion : 1);
 
-          // Fetch Site Settings from Supabase by default ID, with any-row fallback
-          let siteQuery = await supabase
-            .from('site_settings')
-            .select('*')
-            .eq('id', '00000000-0000-0000-0000-000000000000')
-            .maybeSingle();
+          // 2a. Fetch Site Settings ONLY if not cached or if site settings version changed
+          const localSettingsVersion = await getFromCache<number>('site_config_version') || 0;
+          let remoteSettingsVersion = 1;
+          try {
+            const { data: metaSettings } = await supabase
+              .from('metadata_versions')
+              .select('version')
+              .eq('key', 'site_settings')
+              .single();
+            if (metaSettings?.version !== undefined) {
+              remoteSettingsVersion = Number(metaSettings.version);
+            }
+          } catch {}
 
-          let siteData = siteQuery.data;
-          let siteError = siteQuery.error;
-
-          if (!siteData && !siteError) {
-            const anyRowQuery = await supabase
+          if (!cachedConfig || remoteSettingsVersion > localSettingsVersion) {
+            // Fetch Site Settings from Supabase by default ID, with any-row fallback
+            let siteQuery = await supabase
               .from('site_settings')
               .select('*')
+              .eq('id', '00000000-0000-0000-0000-000000000000')
               .maybeSingle();
-            siteData = anyRowQuery.data;
-            siteError = anyRowQuery.error;
-          }
 
-           if (!siteError && siteData) {
-            let fetchedAboutImage = siteData.aboutImage || siteData.about_image_url || siteData.about_image || DEFAULT_CONFIG.aboutImage;
-            let fetchedClientDeliveries = siteData.clientDeliveries || siteData.client_deliveries || null;
-            let fetchedHomeHeroMobileImage = siteData.homeHeroMobileImage || siteData.home_hero_mobile_image_url || undefined;
-            let fetchedInstagramReels = siteData.instagramReels || siteData.instagram_reels || null;
-            let fetchedHomeHeroVideo = siteData.home_hero_video_url || siteData.home_hero_video || undefined;
-            let fetchedHomeHeroMobileVideo = siteData.home_hero_mobile_video_url || siteData.home_hero_mobile_video || undefined;
+            let siteData = siteQuery.data;
+            let siteError = siteQuery.error;
 
-            let fetchedHomeHeroType: 'video' | 'image' = 'video';
-
-            // Self-healing fallback parsing from dual-persisted encoded fields if present
-            if (fetchedAboutImage && fetchedAboutImage.includes('|||')) {
-              const parts = fetchedAboutImage.split('|||');
-              fetchedAboutImage = parts[0];
-              if (parts[1]) {
-                try {
-                  const decoded = JSON.parse(parts[1]);
-                  if (Array.isArray(decoded)) {
-                    fetchedClientDeliveries = decoded;
-                  }
-                } catch (e) {
-                  console.warn('[SUPABASE FETCH FALLBACK WARNING] Parsing serialized client deliveries failed:', e);
-                }
-              }
-              if (parts[2]) {
-                fetchedHomeHeroMobileImage = parts[2];
-              }
-              if (parts[3]) {
-                try {
-                  const decoded = JSON.parse(parts[3]);
-                  if (Array.isArray(decoded)) {
-                    fetchedInstagramReels = decoded;
-                  }
-                } catch (e) {
-                  console.warn('[SUPABASE FETCH FALLBACK WARNING] Parsing serialized instagram reels failed:', e);
-                }
-              }
-              if (parts[4]) {
-                fetchedHomeHeroVideo = fetchedHomeHeroVideo || parts[4];
-              }
-              if (parts[5]) {
-                fetchedHomeHeroMobileVideo = fetchedHomeHeroMobileVideo || parts[5];
-              }
-              if (parts[6]) {
-                fetchedHomeHeroType = (parts[6] === 'image' || parts[6] === 'video') ? parts[6] as 'video' | 'image' : 'video';
-              }
+            if (!siteData && !siteError) {
+              const anyRowQuery = await supabase
+                .from('site_settings')
+                .select('*')
+                .maybeSingle();
+              siteData = anyRowQuery.data;
+              siteError = anyRowQuery.error;
             }
 
-            if (siteData.home_hero_type) {
-              fetchedHomeHeroType = (siteData.home_hero_type === 'image' || siteData.home_hero_type === 'video') ? siteData.home_hero_type : fetchedHomeHeroType;
-            } else if (siteData.homeHeroType) {
-              fetchedHomeHeroType = (siteData.homeHeroType === 'image' || siteData.homeHeroType === 'video') ? siteData.homeHeroType : fetchedHomeHeroType;
-            }
+            if (!siteError && siteData) {
+              let fetchedAboutImage = siteData.aboutImage || siteData.about_image_url || siteData.about_image || DEFAULT_CONFIG.aboutImage;
+              let fetchedClientDeliveries = siteData.clientDeliveries || siteData.client_deliveries || null;
+              let fetchedHomeHeroMobileImage = siteData.homeHeroMobileImage || siteData.home_hero_mobile_image_url || undefined;
+              let fetchedInstagramReels = siteData.instagramReels || siteData.instagram_reels || null;
+              let fetchedHomeHeroVideo = siteData.home_hero_video_url || siteData.home_hero_video || undefined;
+              let fetchedHomeHeroMobileVideo = siteData.home_hero_mobile_video_url || siteData.home_hero_mobile_video || undefined;
 
-            const parsedConfig: SiteConfig = {
-              id: siteData.id,
-              aboutImage: sanitizeAboutImage(fetchedAboutImage),
-              homeHeroImage: sanitizeHeroImage(siteData.homeHeroImage || siteData.home_hero_image_url || siteData.home_hero_image || DEFAULT_CONFIG.homeHeroImage),
-              homeHeroMobileImage: fetchedHomeHeroMobileImage,
-              homeHeroVideo: fetchedHomeHeroVideo,
-              homeHeroMobileVideo: fetchedHomeHeroMobileVideo,
-              homeHeroType: fetchedHomeHeroType,
-              logo: siteData.logo || siteData.logo_url || DEFAULT_CONFIG.logo,
-              clientDeliveries: fetchedClientDeliveries || DEFAULT_CONFIG.clientDeliveries,
-              instagramReels: fetchedInstagramReels || DEFAULT_CONFIG.instagramReels || []
-            };
-            setSiteConfig(parsedConfig);
-            await saveToCache('site_config', parsedConfig);
+              let fetchedHomeHeroType: 'video' | 'image' = 'video';
+
+              // Self-healing fallback parsing from dual-persisted encoded fields if present
+              if (fetchedAboutImage && fetchedAboutImage.includes('|||')) {
+                const parts = fetchedAboutImage.split('|||');
+                fetchedAboutImage = parts[0];
+                if (parts[1]) {
+                  try {
+                    const decoded = JSON.parse(parts[1]);
+                    if (Array.isArray(decoded)) {
+                      fetchedClientDeliveries = decoded;
+                    }
+                  } catch (e) {
+                    console.warn('[SUPABASE FETCH FALLBACK WARNING] Parsing serialized client deliveries failed:', e);
+                  }
+                }
+                if (parts[2]) {
+                  fetchedHomeHeroMobileImage = parts[2];
+                }
+                if (parts[3]) {
+                  try {
+                    const decoded = JSON.parse(parts[3]);
+                    if (Array.isArray(decoded)) {
+                      fetchedInstagramReels = decoded;
+                    }
+                  } catch (e) {
+                    console.warn('[SUPABASE FETCH FALLBACK WARNING] Parsing serialized instagram reels failed:', e);
+                  }
+                }
+                if (parts[4]) {
+                  fetchedHomeHeroVideo = fetchedHomeHeroVideo || parts[4];
+                }
+                if (parts[5]) {
+                  fetchedHomeHeroMobileVideo = fetchedHomeHeroMobileVideo || parts[5];
+                }
+                if (parts[6]) {
+                  fetchedHomeHeroType = (parts[6] === 'image' || parts[6] === 'video') ? parts[6] as 'video' | 'image' : 'video';
+                }
+              }
+
+              if (siteData.home_hero_type) {
+                fetchedHomeHeroType = (siteData.home_hero_type === 'image' || siteData.home_hero_type === 'video') ? siteData.home_hero_type : fetchedHomeHeroType;
+              } else if (siteData.homeHeroType) {
+                fetchedHomeHeroType = (siteData.homeHeroType === 'image' || siteData.homeHeroType === 'video') ? siteData.homeHeroType : fetchedHomeHeroType;
+              }
+
+              const parsedConfig: SiteConfig = {
+                id: siteData.id,
+                aboutImage: sanitizeAboutImage(fetchedAboutImage),
+                homeHeroImage: sanitizeHeroImage(siteData.homeHeroImage || siteData.home_hero_image_url || siteData.home_hero_image || DEFAULT_CONFIG.homeHeroImage),
+                homeHeroMobileImage: fetchedHomeHeroMobileImage,
+                homeHeroVideo: fetchedHomeHeroVideo,
+                homeHeroMobileVideo: fetchedHomeHeroMobileVideo,
+                homeHeroType: fetchedHomeHeroType,
+                logo: siteData.logo || siteData.logo_url || DEFAULT_CONFIG.logo,
+                clientDeliveries: fetchedClientDeliveries || DEFAULT_CONFIG.clientDeliveries,
+                instagramReels: fetchedInstagramReels || DEFAULT_CONFIG.instagramReels || []
+              };
+              setSiteConfig(parsedConfig);
+              await saveToCache('site_config', parsedConfig);
+              await saveToCache('site_config_version', remoteSettingsVersion);
+            }
           }
 
-          if (remoteVersion > localVersion || !cachedVehicles || cachedVehicles.length === 0) {
+          // 2b. Re-fetch vehicles ONLY if remoteVersion > localVersion OR if no cached vehicles exist
+          const shouldFetchVehicles = !cachedVehicles || cachedVehicles.length === 0 || (metaData && remoteVersion > localVersion);
+
+          if (shouldFetchVehicles) {
             incrementMetric('cacheMisses');
             incrementMetric('supabaseReads');
-            const { data, error } = await supabase.from('vehicles').select('*, vehicle_images(*)');
+            // Fetch clean vehicle list directly without redundant relational join
+            const { data, error } = await supabase.from('vehicles').select('*');
             if (!error && data) {
               if (data.length > 0) {
                 const normalized = normalizeVehicles(data);

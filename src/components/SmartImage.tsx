@@ -21,21 +21,20 @@ export const SmartImage: React.FC<SmartImageProps> = ({
   ...props
 }) => {
   const inMem = getInMemoryImageUrl(src);
-  // Only use raw src directly if it is an SVG, local blob, data-uri, or non-cacheable
-  const isDirect = !src || src.startsWith('data:') || src.startsWith('blob:') || !cacheLocally || !isCacheableUrl(src);
+  const isDirect = !src || src.startsWith('data:') || src.startsWith('blob:');
   
+  // Strict on-demand viewport gating: only mount image source when scrolled into view (or if explicitly eager)
+  const [isInView, setIsInView] = useState<boolean>(loading === 'eager');
   const [currentSrc, setCurrentSrc] = useState<string>(
-    inMem ? inMem : (isDirect ? (src || fallbackSrc) : (loading === 'eager' ? (src || fallbackSrc) : TRANSPARENT_PIXEL))
+    inMem ? inMem : (loading === 'eager' && isDirect ? (src || fallbackSrc) : TRANSPARENT_PIXEL)
   );
   const [isLoaded, setIsLoaded] = useState<boolean>(!!inMem);
   const [hasError, setHasError] = useState<boolean>(false);
-  const [isInView, setIsInView] = useState<boolean>(loading === 'eager');
   const imgRef = useRef<HTMLImageElement>(null);
 
-  // Viewport Intersection Observer: Only trigger fetch/cache when within 150px of viewport
+  // Viewport Intersection Observer: Only trigger fetch/cache when viewer reaches the element
   useEffect(() => {
-    if (loading === 'eager') {
-      setIsInView(true);
+    if (loading === 'eager' || isInView) {
       return;
     }
 
@@ -54,14 +53,14 @@ export const SmartImage: React.FC<SmartImageProps> = ({
           observer.disconnect();
         }
       },
-      { rootMargin: '200px 0px' } // Pre-load smoothly 200px before scrolling into view
+      { rootMargin: '30px 0px' } // Strictly triggers only when the viewer scrolls right up to the image
     );
 
     observer.observe(el);
     return () => observer.disconnect();
-  }, [loading]);
+  }, [loading, isInView]);
 
-  // Load from IndexedDB / Memory Cache
+  // Load from IndexedDB / Memory Cache / Network only once in view
   useEffect(() => {
     if (!src || !isInView) return;
 
