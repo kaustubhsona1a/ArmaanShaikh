@@ -86,7 +86,17 @@ export function sanitizeAboutImage(path: string | undefined): string {
 }
 
 const isSupabaseConfigured = () => {
-  return import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_URL !== 'YOUR_SUPABASE_URL';
+  const url = import.meta.env.VITE_SUPABASE_URL;
+  const key = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON;
+  const isConfigured = Boolean(
+    url &&
+    url !== 'YOUR_SUPABASE_URL' &&
+    !url.includes('placeholder.supabase.co') &&
+    key &&
+    key !== 'YOUR_SUPABASE_ANON_KEY' &&
+    key !== 'placeholder'
+  );
+  return isConfigured;
 };
 
 // Helper to guarantee a valid UUID format. If ID is already a UUID, returns it.
