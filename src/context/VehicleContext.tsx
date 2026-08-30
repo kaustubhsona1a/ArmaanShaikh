@@ -384,6 +384,7 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
           ownership,
           registration,
           status,
+          featured: v.featured !== undefined ? Boolean(v.featured) : (v.is_featured !== undefined ? Boolean(v.is_featured) : false),
           deleted,
           updatedAt,
           images,

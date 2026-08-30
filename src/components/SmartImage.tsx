@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getCachedImageUrl, isCacheableUrl, getInMemoryImageUrl, resolveImageUrl } from '../lib/imageCache';
+import { resolveImageUrl } from '../lib/imageCache';
 
 interface SmartImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   fallbackSrc?: string;
@@ -10,68 +10,32 @@ export const VEHICLE_PLACEHOLDER_FALLBACK = "data:image/svg+xml;utf8,<svg xmlns=
 
 export const SmartImage: React.FC<SmartImageProps> = ({
   src,
-  fallbackSrc,
+  fallbackSrc = VEHICLE_PLACEHOLDER_FALLBACK,
   alt = 'Bombay Motors Showroom',
   className = '',
-  cacheLocally = true,
   loading = 'lazy',
   decoding = 'async',
   onError,
   ...props
 }) => {
   const resolved = resolveImageUrl(src);
-  const initialSrc = resolved || fallbackSrc || '';
-  const [currentSrc, setCurrentSrc] = useState<string>(initialSrc);
-  const [hasError, setHasError] = useState<boolean>(false);
+  const [currentSrc, setCurrentSrc] = useState<string>(resolved || fallbackSrc);
+  const [isFailed, setIsFailed] = useState<boolean>(false);
 
-  // Sync state when src or fallbackSrc prop updates
   useEffect(() => {
     const nextResolved = resolveImageUrl(src);
-    if (!nextResolved) {
-      setCurrentSrc(fallbackSrc || '');
-      setHasError(false);
-      return;
-    }
-
-    setHasError(false);
-    const inMem = getInMemoryImageUrl(nextResolved);
-    if (inMem) {
-      setCurrentSrc(inMem);
-      return;
-    }
-
-    // Direct local static assets (/logo.png, /hero-laptop.png, data:, blob:)
-    const isDirect = nextResolved.startsWith('/') || nextResolved.startsWith('data:') || nextResolved.startsWith('blob:');
-    if (isDirect) {
+    if (nextResolved) {
       setCurrentSrc(nextResolved);
-      return;
+      setIsFailed(false);
+    } else {
+      setCurrentSrc(fallbackSrc);
     }
-
-    // Remote URL: set immediately for instant paint via browser cache, and background-cache to IndexedDB
-    setCurrentSrc(nextResolved);
-
-    if (cacheLocally && isCacheableUrl(nextResolved)) {
-      let isMounted = true;
-      getCachedImageUrl(nextResolved)
-        .then((cachedBlobUrl) => {
-          if (isMounted && cachedBlobUrl && cachedBlobUrl !== nextResolved) {
-            setCurrentSrc(cachedBlobUrl);
-          }
-        })
-        .catch(() => {
-          // Keep current direct URL
-        });
-
-      return () => {
-        isMounted = false;
-      };
-    }
-  }, [src, fallbackSrc, cacheLocally]);
+  }, [src, fallbackSrc]);
 
   const handleError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    if (!hasError) {
-      setHasError(true);
-      if (fallbackSrc) {
+    if (!isFailed) {
+      setIsFailed(true);
+      if (fallbackSrc && currentSrc !== fallbackSrc) {
         setCurrentSrc(fallbackSrc);
       }
     }
@@ -90,12 +54,15 @@ export const SmartImage: React.FC<SmartImageProps> = ({
       alt={alt}
       loading={loading}
       decoding={decoding}
+      referrerPolicy="no-referrer"
+      crossOrigin="anonymous"
       className={className}
       onError={handleError}
       {...props}
     />
   );
 };
+
 
 
 

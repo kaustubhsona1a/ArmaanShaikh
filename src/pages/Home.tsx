@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Star, MapPin, Phone, ExternalLink, Video, Gauge, Fuel, Settings, ShieldCheck, Instagram, ArrowRight } from 'lucide-react';
 import { formatPrice, MOCK_REVIEWS } from '../data/mockData';
@@ -7,7 +8,24 @@ import { SmartImage, VEHICLE_PLACEHOLDER_FALLBACK } from '../components/SmartIma
 
 export default function Home() {
   const { vehicles, siteConfig } = useVehicles();
-  const featuredCars = vehicles.filter(v => v.status === 'Available').slice(0, 3);
+  
+  const featuredCars = useMemo(() => {
+    const available = vehicles.filter(v => 
+      !v.deleted && 
+      (v.status?.toLowerCase() === 'available' || !v.status || v.status === 'Available')
+    );
+    // 1. Cars explicitly flagged as featured
+    const flagged = available.filter(v => (v as any).featured === true || (v as any).is_featured === true);
+    if (flagged.length > 0) {
+      return flagged.slice(0, 3);
+    }
+    // 2. Cars with loaded images
+    const withImages = available.filter(v => v.images && v.images.length > 0 && Boolean(v.images[0]));
+    if (withImages.length >= 3) {
+      return withImages.slice(0, 3);
+    }
+    return available.slice(0, 3);
+  }, [vehicles]);
   
   const siteUrl = "https://www.instagram.com/bombaymotorss/";
   const defaultDesc = "Bombay Motors | Mumbai's Premier Boutique for Certified Pre-Owned, Family & Premium Motorcars. Certified inspection, transparent pricing and fast delivery across Mumbai & Eastern Suburbs.";

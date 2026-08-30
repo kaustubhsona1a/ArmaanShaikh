@@ -22,6 +22,7 @@ export type Vehicle = {
   images: string[];
   features: string[];
   status: 'Available' | 'Sold' | 'Booked' | 'Deleted';
+  featured?: boolean;
   description?: string;
   instagramReel?: string;
   updatedAt?: number;
