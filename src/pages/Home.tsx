@@ -86,9 +86,8 @@ export default function Home() {
                     {/* Top Image Container with Badges */}
                     <div className="relative aspect-[4/3] rounded-xl sm:rounded-2xl overflow-hidden bg-black/80 mb-4 sm:mb-5">
                       <SmartImage 
-                        src={car.images[0] || "https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?auto=format&fit=crop&q=80&w=800"} 
+                        src={car.images?.[0] || ""} 
                         alt={`${car.make} ${car.model}`}
-                        fallbackSrc="https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?auto=format&fit=crop&q=80&w=800"
                         className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105" 
                       />
                       

@@ -92,9 +92,8 @@ export default function AdminInventory() {
                     <div className="flex items-center space-x-4">
                       <div className="w-16 h-12 rounded-lg border border-white/5 overflow-hidden shrink-0">
                         <SmartImage 
-                          src={car.images?.[0] || "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800"} 
+                          src={car.images?.[0] || ""} 
                           alt="" 
-                          fallbackSrc="https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800"
                           className="w-full h-full object-cover" 
                         />
                       </div>
@@ -144,9 +143,8 @@ export default function AdminInventory() {
               <div className="flex space-x-4 items-start">
                 <div className="w-20 h-16 rounded-lg border border-white/5 overflow-hidden shrink-0">
                   <SmartImage 
-                    src={car.images?.[0] || "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800"} 
+                    src={car.images?.[0] || ""} 
                     alt="" 
-                    fallbackSrc="https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800"
                     className="w-full h-full object-cover" 
                   />
                 </div>

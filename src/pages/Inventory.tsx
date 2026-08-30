@@ -482,9 +482,8 @@ export default function Inventory() {
                       <div className="frost-card hover:-translate-y-1.5 transition-all duration-300 ease-out flex flex-col h-full overflow-hidden rounded-2xl">
                         <div className="relative aspect-[16/10] sm:aspect-video md:aspect-auto md:h-64 overflow-hidden bg-black/60">
                           <SmartImage 
-                            src={car.images?.[0] || "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800"} 
+                            src={car.images?.[0] || ""} 
                             alt={`${car.make} ${car.model}`} 
-                            fallbackSrc="https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800"
                             loading="lazy" 
                             decoding="async"
                             className="w-full h-full object-contain bg-black/40 transition-transform duration-500 ease-out group-hover:scale-[1.05]" 

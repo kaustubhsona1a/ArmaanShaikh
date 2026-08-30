@@ -211,7 +211,7 @@ export default function AdminAddVehicle() {
         registration: formData.registration,
         description: formData.description,
         instagramReel: formData.instagramReel,
-        images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&q=80&w=800'],
+        images: images,
       });
     } else {
       const newVehicle: Vehicle = {
@@ -231,7 +231,7 @@ export default function AdminAddVehicle() {
         registration: formData.registration,
         description: formData.description,
         instagramReel: formData.instagramReel,
-        images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&q=80&w=800'],
+        images: images,
         features: ['Air Conditioning', 'Power Steering'], 
         status: 'Available',
       };
@@ -389,7 +389,7 @@ export default function AdminAddVehicle() {
                   alt={`Preview ${i}`} 
                   className="w-full h-full object-cover pointer-events-none" 
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800";
+                    (e.target as HTMLImageElement).src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='500' viewBox='0 0 800 500' fill='none'><rect width='800' height='500' fill='%23121214'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%23ffffff' opacity='0.3' font-family='sans-serif' font-size='14'>PREVIEW ERROR</text></svg>";
                   }}
                 />
                 <div className="absolute top-2 left-2 bg-zinc-950/80 text-white text-[8px] font-bold px-1.5 py-0.5 rounded font-mono border border-white/10 shadow-sm pointer-events-none">

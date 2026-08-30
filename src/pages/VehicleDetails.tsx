@@ -211,9 +211,8 @@ export default function VehicleDetails() {
           onTouchEnd={handleTouchEnd}
         >
           <SmartImage 
-            src={car.images?.[activeImage] || "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800"} 
+            src={car.images?.[activeImage] || ""} 
             alt={car.make} 
-            fallbackSrc="https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800"
             className="w-full h-full object-contain transition-all duration-500 opacity-95 group-hover:opacity-100" 
           />
         </div>
@@ -227,9 +226,8 @@ export default function VehicleDetails() {
               <SmartImage 
                 src={img} 
                 alt={`Thumbnail ${i + 1}`} 
-                fallbackSrc="https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800"
                 loading="lazy" 
-                decoding="async"
+                decoding="async" 
                 className="w-full h-full object-cover" 
               />
             </button>
@@ -506,9 +504,8 @@ export default function VehicleDetails() {
             )}
 
             <SmartImage 
-              src={car.images?.[activeImage] || "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800"} 
+              src={car.images?.[activeImage] || ""} 
               alt={`Fullscreen ${car.make} ${car.model}`} 
-              fallbackSrc="https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800"
               className="max-w-full max-h-full object-contain cursor-default select-none transition-all duration-300"
               onClick={(e) => e.stopPropagation()}
             />
@@ -621,7 +618,7 @@ export default function VehicleDetails() {
               <div className="bg-zinc-950/40 border border-zinc-805 rounded-xl p-4 flex gap-4 items-center">
                 <div className="w-16 h-12 rounded overflow-hidden flex-shrink-0 bg-zinc-950">
                   <SmartImage 
-                    src={car.images?.[0] || "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=100"} 
+                    src={car.images?.[0] || ""} 
                     alt={car.make} 
                     className="w-full h-full object-cover"
                   />

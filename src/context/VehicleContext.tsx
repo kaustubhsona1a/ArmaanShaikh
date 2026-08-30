@@ -62,8 +62,8 @@ const VehicleContext = createContext<VehicleContextType | undefined>(undefined);
 
 const DEFAULT_CONFIG: SiteConfig = {
   aboutImage: '/about.jpg',
-  homeHeroImage: '/hero-desktop.jpg',
-  homeHeroMobileImage: '/hero-mobile.jpg',
+  homeHeroImage: '/hero-laptop.png',
+  homeHeroMobileImage: '/hero-mobile.png',
   homeHeroVideo: '',
   homeHeroMobileVideo: '',
   homeHeroType: 'image',
@@ -73,8 +73,22 @@ const DEFAULT_CONFIG: SiteConfig = {
 };
 
 export function sanitizeHeroImage(path: string | undefined): string {
-  if (!path || path.trim() === '') {
-    return "/hero-desktop.jpg";
+  if (!path || path.trim() === '' || path === '/backdrop.jpg' || path === '/hero-desktop.jpg') {
+    return "/hero-laptop.png";
+  }
+  return path;
+}
+
+export function sanitizeHeroMobileImage(path: string | undefined): string {
+  if (!path || path.trim() === '' || path === '/hero-mobile.jpg') {
+    return "/hero-mobile.png";
+  }
+  return path;
+}
+
+export function sanitizeLogo(path: string | undefined): string {
+  if (!path || path.trim() === '' || path === '/bombay_logo.jpeg' || path === '/logo.jpeg') {
+    return "/logo.png";
   }
   return path;
 }
@@ -161,6 +175,7 @@ export function toDbPayload(v: any) {
     description: v.description || null,
     instagram_reel: reelVal,
     inspection_notes: v.inspection_notes || v.inspectionNotes || null,
+    images: Array.isArray(v.images) ? v.images : [],
     features: Array.isArray(v.features) ? (
       reelVal ? [...v.features.filter((f: string) => !f.startsWith('instagram_reel:')), `instagram_reel:${reelVal}`] : v.features.filter((f: string) => !f.startsWith('instagram_reel:'))
     ) : (reelVal ? [`instagram_reel:${reelVal}`] : []),
@@ -445,11 +460,11 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
                 id: siteData.id,
                 aboutImage: sanitizeAboutImage(fetchedAboutImage),
                 homeHeroImage: sanitizeHeroImage(siteData.homeHeroImage || siteData.home_hero_image_url || siteData.home_hero_image || DEFAULT_CONFIG.homeHeroImage),
-                homeHeroMobileImage: fetchedHomeHeroMobileImage,
+                homeHeroMobileImage: sanitizeHeroMobileImage(fetchedHomeHeroMobileImage),
                 homeHeroVideo: fetchedHomeHeroVideo,
                 homeHeroMobileVideo: fetchedHomeHeroMobileVideo,
                 homeHeroType: fetchedHomeHeroType,
-                logo: siteData.logo || siteData.logo_url || DEFAULT_CONFIG.logo,
+                logo: sanitizeLogo(siteData.logo || siteData.logo_url || DEFAULT_CONFIG.logo),
                 clientDeliveries: fetchedClientDeliveries || DEFAULT_CONFIG.clientDeliveries,
                 instagramReels: fetchedInstagramReels || DEFAULT_CONFIG.instagramReels || []
               };
@@ -459,14 +474,15 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
             }
           }
 
-          // 2b. Re-fetch vehicles ONLY if remoteVersion > localVersion OR if no cached vehicles exist
-          const shouldFetchVehicles = !cachedVehicles || cachedVehicles.length === 0 || (metaData && remoteVersion > localVersion);
+          // 2b. Re-fetch vehicles if remoteVersion > localVersion OR if no cached vehicles exist OR if cached vehicles are missing images
+          const isCacheMissingImages = Boolean(cachedVehicles && cachedVehicles.length > 0 && cachedVehicles.some(v => !v.images || v.images.length === 0));
+          const shouldFetchVehicles = !cachedVehicles || cachedVehicles.length === 0 || isCacheMissingImages || (metaData && remoteVersion > localVersion);
 
           if (shouldFetchVehicles) {
             incrementMetric('cacheMisses');
             incrementMetric('supabaseReads');
-            // Fetch clean vehicle list directly without redundant relational join
-            const { data, error } = await supabase.from('vehicles').select('*');
+            // Fetch vehicle list along with associated vehicle_images relation
+            const { data, error } = await supabase.from('vehicles').select('*, vehicle_images(*)');
             if (!error && data) {
               if (data.length > 0) {
                 const normalized = normalizeVehicles(data);
@@ -575,11 +591,12 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
       const dbPayload = toDbPayload(cleaned);
       console.log('[SUPABASE INSERT] Inserting vehicle:', targetId, dbPayload);
       let { data, error } = await supabase.from('vehicles').insert([dbPayload]).select();
-      if (error && (error.message?.includes('body_type') || error.message?.includes('instagram_reel') || error.code === '42703')) {
+      if (error && (error.message?.includes('body_type') || error.message?.includes('instagram_reel') || error.message?.includes('images') || error.code === '42703')) {
         console.warn('[SUPABASE INSERT RETRY] Missing column on vehicles table. Retrying with fallback payload...', error);
         const retryPayload = { ...dbPayload };
         if (error.message?.includes('body_type')) delete (retryPayload as any).body_type;
         if (error.message?.includes('instagram_reel')) delete (retryPayload as any).instagram_reel;
+        if (error.message?.includes('images')) delete (retryPayload as any).images;
         const retryQuery = await supabase.from('vehicles').insert([retryPayload]).select();
         data = retryQuery.data;
         error = retryQuery.error;
@@ -621,11 +638,12 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
       const dbPayload = toDbPayload(cleaned);
       console.log('[SUPABASE UPDATE] Updating vehicle:', targetId, dbPayload);
       let { data, error } = await supabase.from('vehicles').update(dbPayload).eq('id', targetId).select();
-      if (error && (error.message?.includes('body_type') || error.message?.includes('instagram_reel') || error.code === '42703')) {
+      if (error && (error.message?.includes('body_type') || error.message?.includes('instagram_reel') || error.message?.includes('images') || error.code === '42703')) {
         console.warn('[SUPABASE UPDATE RETRY] Missing column on vehicles table. Retrying with fallback payload...', error);
         const retryPayload = { ...dbPayload };
         if (error.message?.includes('body_type')) delete (retryPayload as any).body_type;
         if (error.message?.includes('instagram_reel')) delete (retryPayload as any).instagram_reel;
+        if (error.message?.includes('images')) delete (retryPayload as any).images;
         const retryQuery = await supabase.from('vehicles').update(retryPayload).eq('id', targetId).select();
         data = retryQuery.data;
         error = retryQuery.error;
