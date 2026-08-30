@@ -83,16 +83,61 @@ export function getInMemoryImageUrl(url: string | undefined): string | null {
 }
 
 /**
+ * Normalizes image URLs from local public paths, GitHub links, Supabase storage, or external CDNs.
+ * - Converts GitHub web preview URLs (github.com/.../blob/...) to direct raw image URLs (raw.githubusercontent.com/...)
+ * - Prepend import.meta.env.BASE_URL to relative/absolute local paths so GitHub Pages subpaths work
+ * - Remaps legacy file names (/hero-desktop.jpg, /bombay_logo.jpeg, /backdrop.jpg) to current files
+ */
+export function resolveImageUrl(url: string | undefined): string {
+  if (!url || typeof url !== 'string' || url.trim() === '') {
+    return '';
+  }
+
+  let cleaned = url.trim();
+
+  // 1. Transform GitHub Blob URLs to Direct Raw URLs
+  // Example: https://github.com/user/repo/blob/main/public/logo.png -> https://raw.githubusercontent.com/user/repo/main/public/logo.png
+  if (cleaned.includes('github.com/') && cleaned.includes('/blob/')) {
+    cleaned = cleaned
+      .replace('https://github.com/', 'https://raw.githubusercontent.com/')
+      .replace('http://github.com/', 'https://raw.githubusercontent.com/')
+      .replace('/blob/', '/');
+  }
+
+  // 2. Remap legacy asset filenames to active public assets
+  if (cleaned === '/hero-desktop.jpg' || cleaned === '/backdrop.jpg' || cleaned === 'hero-desktop.jpg' || cleaned === 'backdrop.jpg') {
+    cleaned = '/hero-laptop.png';
+  } else if (cleaned === '/hero-mobile.jpg' || cleaned === 'hero-mobile.jpg') {
+    cleaned = '/hero-mobile.png';
+  } else if (cleaned === '/bombay_logo.jpeg' || cleaned === '/logo.jpeg' || cleaned === 'bombay_logo.jpeg' || cleaned === 'logo.jpeg') {
+    cleaned = '/logo.png';
+  }
+
+  // 3. Resolve local paths with Vite base URL if running on a subpath (e.g. GitHub Pages)
+  if (cleaned.startsWith('/')) {
+    const base = import.meta.env.BASE_URL || '/';
+    if (base !== '/' && !cleaned.startsWith(base)) {
+      const normalizedBase = base.endsWith('/') ? base.slice(0, -1) : base;
+      return `${normalizedBase}${cleaned}`;
+    }
+  }
+
+  return cleaned;
+}
+
+/**
  * Check if the URL belongs to Supabase Storage or external media that should be cached
  */
 export function isCacheableUrl(url: string | undefined): boolean {
   if (!url || typeof url !== 'string') return false;
-  if (url.startsWith('data:') || url.startsWith('blob:')) return false;
+  const resolved = resolveImageUrl(url);
+  if (!resolved || resolved.startsWith('/') || resolved.startsWith('data:') || resolved.startsWith('blob:')) return false;
   return (
-    url.includes('supabase.co/storage/') ||
-    url.includes('unsplash.com') ||
-    url.includes('cloudinary.com') ||
-    url.startsWith('https://')
+    resolved.includes('supabase.co/storage/') ||
+    resolved.includes('raw.githubusercontent.com') ||
+    resolved.includes('unsplash.com') ||
+    resolved.includes('cloudinary.com') ||
+    resolved.startsWith('https://')
   );
 }
 

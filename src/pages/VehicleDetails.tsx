@@ -4,7 +4,7 @@ import { CheckCircle2, ChevronLeft, ChevronRight, MapPin, Search, Share2, Copy, 
 import React, { useState, useEffect } from 'react';
 import { useVehicles } from '../context/VehicleContext';
 import { Helmet } from 'react-helmet-async';
-import { SmartImage } from '../components/SmartImage';
+import { SmartImage, VEHICLE_PLACEHOLDER_FALLBACK } from '../components/SmartImage';
 
 export default function VehicleDetails() {
   const { vehicles, loading } = useVehicles();
@@ -212,6 +212,7 @@ export default function VehicleDetails() {
         >
           <SmartImage 
             src={car.images?.[activeImage] || ""} 
+            fallbackSrc={VEHICLE_PLACEHOLDER_FALLBACK}
             alt={car.make} 
             className="w-full h-full object-contain transition-all duration-500 opacity-95 group-hover:opacity-100" 
           />

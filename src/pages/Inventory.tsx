@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { formatPrice, BODY_TYPES } from '../data/mockData';
 import { Search, Filter, Car, Gauge, Fuel, Cog, Instagram } from 'lucide-react';
 import { useVehicles } from '../context/VehicleContext';
-import { SmartImage } from '../components/SmartImage';
+import { SmartImage, VEHICLE_PLACEHOLDER_FALLBACK } from '../components/SmartImage';
 
 export default function Inventory() {
   const { vehicles, loading } = useVehicles();
@@ -483,6 +483,7 @@ export default function Inventory() {
                         <div className="relative aspect-[16/10] sm:aspect-video md:aspect-auto md:h-64 overflow-hidden bg-black/60">
                           <SmartImage 
                             src={car.images?.[0] || ""} 
+                            fallbackSrc={VEHICLE_PLACEHOLDER_FALLBACK}
                             alt={`${car.make} ${car.model}`} 
                             loading="lazy" 
                             decoding="async"

@@ -3,7 +3,7 @@ import { Star, MapPin, Phone, ExternalLink, Video, Gauge, Fuel, Settings, Shield
 import { formatPrice, MOCK_REVIEWS } from '../data/mockData';
 import { useVehicles } from '../context/VehicleContext';
 import { Helmet } from 'react-helmet-async';
-import { SmartImage } from '../components/SmartImage';
+import { SmartImage, VEHICLE_PLACEHOLDER_FALLBACK } from '../components/SmartImage';
 
 export default function Home() {
   const { vehicles, siteConfig } = useVehicles();
@@ -87,6 +87,7 @@ export default function Home() {
                     <div className="relative aspect-[4/3] rounded-xl sm:rounded-2xl overflow-hidden bg-black/80 mb-4 sm:mb-5">
                       <SmartImage 
                         src={car.images?.[0] || ""} 
+                        fallbackSrc={VEHICLE_PLACEHOLDER_FALLBACK}
                         alt={`${car.make} ${car.model}`}
                         className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105" 
                       />

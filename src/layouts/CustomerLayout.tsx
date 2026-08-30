@@ -129,34 +129,18 @@ export default function CustomerLayout() {
         </div>
       )}
 
-          {/* Global Background - Showroom Backdrop with Rich Frosted Glass Ambient Theme */}
+          {/* Global Background - Showroom Backdrop fetched directly from public folder of the build */}
       <div className="fixed top-0 bottom-0 left-0 right-0 z-0 bg-[#070709] overflow-hidden pointer-events-none">
-        {/* Showcase Backdrop */}
-        {isMobileScreen ? (
-          (siteConfig.homeHeroMobileImage || siteConfig.homeHeroImage) && (
-            <SmartImage 
-              src={siteConfig.homeHeroMobileImage || siteConfig.homeHeroImage}
-              alt="Showroom Mobile Backdrop"
-              loading="eager"
-              decoding="async"
-              className={`absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-500 ease-in-out ${
-                isFading ? 'opacity-0' : 'opacity-100'
-              }`}
-            />
-          )
-        ) : (
-          siteConfig.homeHeroImage && (
-            <SmartImage 
-              src={siteConfig.homeHeroImage}
-              alt="Showroom Desktop Backdrop"
-              loading="eager"
-              decoding="async"
-              className={`absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-500 ease-in-out ${
-                isFading ? 'opacity-0' : 'opacity-100'
-              }`}
-            />
-          )
-        )}
+        <picture className="absolute inset-0 w-full h-full">
+          <source media="(max-width: 767px)" srcSet="/hero-mobile.png" />
+          <img 
+            src="/hero-laptop.png" 
+            alt="Showroom Backdrop" 
+            loading="eager" 
+            decoding="async" 
+            className="w-full h-full object-cover object-center" 
+          />
+        </picture>
         {/* Crystal-clear Base Gradient for Hero */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/30 pointer-events-none" />
 
@@ -167,7 +151,7 @@ export default function CustomerLayout() {
           }`} 
         />
 
-         {/* Clean Subtle Monochrome Ambient Glow */}
+        {/* Clean Subtle Monochrome Ambient Glow */}
         <div className="absolute top-[-10%] left-[-10%] w-[60vw] h-[60vw] bg-white/[0.02] rounded-full blur-[160px] pointer-events-none z-2"></div>
         <div className="absolute bottom-[-10%] right-[-10%] w-[55vw] h-[55vw] bg-white/[0.015] rounded-full blur-[180px] pointer-events-none z-2"></div>
       </div>
@@ -182,18 +166,19 @@ export default function CustomerLayout() {
 
           <div className="container mx-auto max-w-7xl px-4 sm:px-6 py-3.5 sm:py-4 flex justify-between items-center">
             
-            {/* Left Side: Branding Logo or Text */}
+            {/* Left Side: Branding Logo Image */}
             <Link to="/" className="flex items-center shrink-0 select-none group">
-              {siteConfig.logo ? (
-                <SmartImage src={siteConfig.logo} alt="Bombay Motors" className="h-9 sm:h-11 md:h-12 w-auto max-w-[200px] object-contain transition-all duration-300 group-hover:scale-105" />
-              ) : (
-                <div className="flex flex-col">
-                  <span className="text-lg sm:text-xl md:text-2xl font-cinzel font-bold tracking-[0.15em] text-white group-hover:text-zinc-300 transition-colors uppercase">
-                    BOMBAY MOTORS
-                  </span>
-                  <span className="text-[7.5px] sm:text-[8px] font-mono tracking-[0.35em] text-zinc-400 uppercase font-semibold">Exotic & Luxury Motorcars</span>
-                </div>
-              )}
+              <img 
+                src={siteConfig.logo || "/logo.png"} 
+                alt="Bombay Motors" 
+                className="h-9 sm:h-11 md:h-12 w-auto max-w-[200px] object-contain transition-all duration-300 group-hover:scale-105" 
+                onError={(e) => {
+                  const target = e.currentTarget as HTMLImageElement;
+                  if (!target.src.endsWith('/logo.png')) {
+                    target.src = '/logo.png';
+                  }
+                }}
+              />
             </Link>
 
             {/* Right/Middle Side: Frosted Glass Icons & Navigation Links matching user screenshot */}
@@ -441,17 +426,17 @@ export default function CustomerLayout() {
         <div className="container mx-auto max-w-7xl grid grid-cols-1 md:grid-cols-3 gap-16 relative z-10 text-zinc-300">
           <div className="space-y-6 md:col-span-1">
             <div className="flex items-center inline-flex mb-4">
-              <SmartImage 
-                src={siteConfig.logo} 
+              <img 
+                src={siteConfig.logo || "/logo.png"} 
                 alt="Bombay Motors" 
                 className="h-10 w-auto object-contain mr-3 max-w-[150px]" 
+                onError={(e) => {
+                  const target = e.currentTarget as HTMLImageElement;
+                  if (!target.src.endsWith('/logo.png')) {
+                    target.src = '/logo.png';
+                  }
+                }}
               />
-              <div className="hidden flex-col items-start nv-logo-text">
-                <h1 className="text-xl font-cinzel tracking-[0.18em] leading-none font-bold uppercase text-white">
-                  BOMBAY MOTORS
-                </h1>
-                <p className="text-[8px] uppercase tracking-[0.5em] text-zinc-400 font-sans mt-1 font-bold">40+ YEARS IN MULUND • MUMBAI</p>
-              </div>
             </div>
             <p className="text-sm tracking-wide leading-relaxed text-zinc-300 font-light font-sans">
               Exotic & Luxury Motorcars. Founded 40 years ago in Mulund, Bombay Motors delivers uncompromising certification, transparent transactions, and bespoke automotive excellence.

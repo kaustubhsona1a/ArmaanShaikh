@@ -76,16 +76,17 @@ export default function AdminLayout() {
           <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-white/45 to-transparent"></div>
           
           <Link to="/" className="inline-flex flex-col items-center mb-8 group">
-            {siteConfig.logo ? (
-              <SmartImage src={siteConfig.logo} alt="Bombay Motors" className="h-14 w-auto object-contain mb-3" />
-            ) : (
-              <div className="w-14 h-14 bg-zinc-900 border border-zinc-800 rounded-2xl flex items-center justify-center mb-3">
-                <CarFront className="w-6 h-6 text-white" />
-              </div>
-            )}
-            <h1 className="text-xl font-serif text-white tracking-widest leading-none font-bold uppercase block text-center">
-              BOMBAY MOTORS
-            </h1>
+            <img 
+              src={siteConfig.logo || "/logo.png"} 
+              alt="Bombay Motors" 
+              className="h-14 w-auto object-contain mb-3" 
+              onError={(e) => {
+                const target = e.currentTarget as HTMLImageElement;
+                if (!target.src.endsWith('/logo.png')) {
+                  target.src = '/logo.png';
+                }
+              }}
+            />
             <p className="text-[8px] uppercase tracking-[0.45em] text-white font-mono mt-1.5 font-semibold">Dealer Portal Lock</p>
           </Link>
 

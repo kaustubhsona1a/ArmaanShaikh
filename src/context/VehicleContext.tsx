@@ -3,6 +3,7 @@ import { Vehicle, MOCK_VEHICLES, MOCK_LEADS } from '../data/mockData';
 import { supabase, handleSupabaseError, OperationType, deleteImagesFromStorage } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { getFromCache, saveToCache } from '../lib/indexedDB';
+import { resolveImageUrl } from '../lib/imageCache';
 
 export interface Lead {
   id: string;
@@ -73,31 +74,35 @@ const DEFAULT_CONFIG: SiteConfig = {
 };
 
 export function sanitizeHeroImage(path: string | undefined): string {
-  if (!path || path.trim() === '' || path === '/backdrop.jpg' || path === '/hero-desktop.jpg') {
+  const resolved = resolveImageUrl(path);
+  if (!resolved || resolved === '/backdrop.jpg' || resolved === '/hero-desktop.jpg' || resolved.endsWith('/hero-desktop.jpg') || resolved.endsWith('/backdrop.jpg')) {
     return "/hero-laptop.png";
   }
-  return path;
+  return resolved;
 }
 
 export function sanitizeHeroMobileImage(path: string | undefined): string {
-  if (!path || path.trim() === '' || path === '/hero-mobile.jpg') {
+  const resolved = resolveImageUrl(path);
+  if (!resolved || resolved === '/hero-mobile.jpg' || resolved.endsWith('/hero-mobile.jpg')) {
     return "/hero-mobile.png";
   }
-  return path;
+  return resolved;
 }
 
 export function sanitizeLogo(path: string | undefined): string {
-  if (!path || path.trim() === '' || path === '/bombay_logo.jpeg' || path === '/logo.jpeg') {
+  const resolved = resolveImageUrl(path);
+  if (!resolved || resolved === '/bombay_logo.jpeg' || resolved === '/logo.jpeg' || resolved.endsWith('/bombay_logo.jpeg') || resolved.endsWith('/logo.jpeg') || resolved.includes('bombay_logo')) {
     return "/logo.png";
   }
-  return path;
+  return resolved;
 }
 
 export function sanitizeAboutImage(path: string | undefined): string {
-  if (!path || path.trim() === '') {
+  const resolved = resolveImageUrl(path);
+  if (!resolved) {
     return "/about.jpg";
   }
-  return path;
+  return resolved;
 }
 
 const isSupabaseConfigured = () => {
@@ -255,23 +260,87 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
         const deleted = v.deleted !== undefined ? v.deleted : (v.is_deleted !== undefined ? v.is_deleted : false);
         const updatedAt = v.updatedAt || (v.updated_at ? new Date(v.updated_at).getTime() : Date.now());
         
-        let images = v.images || [];
-        if (v.vehicle_images && Array.isArray(v.vehicle_images)) {
-          const sortedImg = [...v.vehicle_images].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
-          const mappedFromRelations = sortedImg.map(img => img.image_url || img.gallery_url || img.fullscreen_url || img.thumbnail_url || '').filter(Boolean);
-          if (mappedFromRelations.length > 0) {
-            images = mappedFromRelations;
+        let images: string[] = [];
+
+        // 1. Process v.images (could be Array of strings, Array of objects, JSON string, or single string)
+        if (v.images) {
+          if (Array.isArray(v.images)) {
+            images = v.images.map((img: any) => {
+              if (typeof img === 'string') return img.trim();
+              if (img && typeof img === 'object') {
+                return (img.image_url || img.gallery_url || img.fullscreen_url || img.thumbnail_url || img.url || '').trim();
+              }
+              return '';
+            }).filter(Boolean);
+          } else if (typeof v.images === 'string') {
+            const raw = v.images.trim();
+            if (raw.startsWith('[') || raw.startsWith('{')) {
+              try {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) {
+                  images = parsed.map((img: any) => {
+                    if (typeof img === 'string') return img.trim();
+                    if (img && typeof img === 'object') {
+                      return (img.image_url || img.gallery_url || img.fullscreen_url || img.thumbnail_url || img.url || '').trim();
+                    }
+                    return '';
+                  }).filter(Boolean);
+                }
+              } catch {}
+            } else if (raw.startsWith('http') || raw.startsWith('/') || raw.startsWith('data:')) {
+              images = [raw];
+            }
           }
         }
-        if (images && Array.isArray(images)) {
-          images = images.map((img: any) => {
-            if (typeof img === 'string') return img;
-            if (img && typeof img === 'object') {
-              return img.gallery_url || img.fullscreen_url || img.thumbnail_url || img.image_url || '';
+
+        // 2. Process alternative single-image columns (e.g. image_url, thumbnail_url, cover_image, photo)
+        const altImageCandidates = [
+          v.image_url,
+          v.imageUrl,
+          v.image,
+          v.thumbnail_url,
+          v.cover_image,
+          v.cover_url,
+          v.photo,
+          v.photos
+        ];
+        for (const cand of altImageCandidates) {
+          if (cand) {
+            if (typeof cand === 'string' && cand.trim()) {
+              if (!images.includes(cand.trim())) {
+                images.push(cand.trim());
+              }
+            } else if (Array.isArray(cand)) {
+              cand.forEach((item: any) => {
+                if (typeof item === 'string' && item.trim() && !images.includes(item.trim())) {
+                  images.push(item.trim());
+                }
+              });
             }
-            return '';
-          }).filter(Boolean);
+          }
         }
+
+        // 3. Process vehicle_images relation table if present
+        if (v.vehicle_images && Array.isArray(v.vehicle_images) && v.vehicle_images.length > 0) {
+          const sortedImg = [...v.vehicle_images].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+          const mappedFromRelations = sortedImg.map(img => (img.image_url || img.gallery_url || img.fullscreen_url || img.thumbnail_url || img.url || '').trim()).filter(Boolean);
+          if (mappedFromRelations.length > 0) {
+            if (images.length === 0) {
+              images = mappedFromRelations;
+            } else {
+              const set = new Set(images);
+              mappedFromRelations.forEach(url => {
+                if (!set.has(url)) {
+                  images.push(url);
+                  set.add(url);
+                }
+              });
+            }
+          }
+        }
+        
+        // 4. Resolve all image URLs (GitHub blob conversion, legacy paths, subpath handling)
+        images = images.map(img => resolveImageUrl(img)).filter(Boolean);
         
         let features = v.features || [];
         let instagramReel = v.instagram_reel || '';
@@ -341,7 +410,14 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
       }
       
       if (cachedConfig) {
-        setSiteConfig(cachedConfig);
+        setSiteConfig({
+          ...DEFAULT_CONFIG,
+          ...cachedConfig,
+          aboutImage: sanitizeAboutImage(cachedConfig.aboutImage),
+          homeHeroImage: sanitizeHeroImage(cachedConfig.homeHeroImage),
+          homeHeroMobileImage: sanitizeHeroMobileImage(cachedConfig.homeHeroMobileImage),
+          logo: sanitizeLogo(cachedConfig.logo),
+        });
       } else {
         setSiteConfig(DEFAULT_CONFIG);
       }
@@ -382,25 +458,16 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
             }
           } catch {}
 
-          if (!cachedConfig || remoteSettingsVersion > localSettingsVersion) {
-            // Fetch Site Settings from Supabase by default ID, with any-row fallback
+          // 2a. Fetch Site Settings from Supabase
+          try {
             let siteQuery = await supabase
               .from('site_settings')
               .select('*')
-              .eq('id', '00000000-0000-0000-0000-000000000000')
+              .limit(1)
               .maybeSingle();
 
             let siteData = siteQuery.data;
             let siteError = siteQuery.error;
-
-            if (!siteData && !siteError) {
-              const anyRowQuery = await supabase
-                .from('site_settings')
-                .select('*')
-                .maybeSingle();
-              siteData = anyRowQuery.data;
-              siteError = anyRowQuery.error;
-            }
 
             if (!siteError && siteData) {
               let fetchedAboutImage = siteData.aboutImage || siteData.about_image_url || siteData.about_image || DEFAULT_CONFIG.aboutImage;
@@ -410,7 +477,7 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
               let fetchedHomeHeroVideo = siteData.home_hero_video_url || siteData.home_hero_video || undefined;
               let fetchedHomeHeroMobileVideo = siteData.home_hero_mobile_video_url || siteData.home_hero_mobile_video || undefined;
 
-              let fetchedHomeHeroType: 'video' | 'image' = 'video';
+              let fetchedHomeHeroType: 'video' | 'image' = 'image';
 
               // Self-healing fallback parsing from dual-persisted encoded fields if present
               if (fetchedAboutImage && fetchedAboutImage.includes('|||')) {
@@ -446,7 +513,7 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
                   fetchedHomeHeroMobileVideo = fetchedHomeHeroMobileVideo || parts[5];
                 }
                 if (parts[6]) {
-                  fetchedHomeHeroType = (parts[6] === 'image' || parts[6] === 'video') ? parts[6] as 'video' | 'image' : 'video';
+                  fetchedHomeHeroType = (parts[6] === 'image' || parts[6] === 'video') ? parts[6] as 'video' | 'image' : 'image';
                 }
               }
 
@@ -470,48 +537,43 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
               };
               setSiteConfig(parsedConfig);
               await saveToCache('site_config', parsedConfig);
-              await saveToCache('site_config_version', remoteSettingsVersion);
             }
+          } catch (settingsErr) {
+            console.warn('[SUPABASE SETTINGS FETCH SKIP]', settingsErr);
           }
 
-          // 2b. Re-fetch vehicles if remoteVersion > localVersion OR if no cached vehicles exist OR if cached vehicles are missing images
-          const isCacheMissingImages = Boolean(cachedVehicles && cachedVehicles.length > 0 && cachedVehicles.some(v => !v.images || v.images.length === 0));
-          const shouldFetchVehicles = !cachedVehicles || cachedVehicles.length === 0 || isCacheMissingImages || (metaData && remoteVersion > localVersion);
+          // 2b. Fetch vehicles from Supabase with relations
+          incrementMetric('supabaseReads');
+          const { data, error } = await supabase
+            .from('vehicles')
+            .select('*, vehicle_images(*)')
+            .order('created_at', { ascending: false });
 
-          if (shouldFetchVehicles) {
-            incrementMetric('cacheMisses');
-            incrementMetric('supabaseReads');
-            // Fetch vehicle list along with associated vehicle_images relation
-            const { data, error } = await supabase.from('vehicles').select('*, vehicle_images(*)');
-            if (!error && data) {
-              if (data.length > 0) {
-                const normalized = normalizeVehicles(data);
-                const filtered = normalized.filter(v => !v.deleted && v.status !== 'Deleted');
-                setVehicles(filtered);
-                await saveToCache('vehicles', normalized);
-                await saveToCache('vehicles_version', remoteVersion);
-              } else {
-                setVehicles([]);
-              }
-            } else if (error) {
-              console.warn('Supabase query failed, keeping cache/empty fallback', error);
-              if (!hasMountedCache) {
-                setVehicles([]);
-              }
+          if (!error && data) {
+            if (data.length > 0) {
+              const normalized = normalizeVehicles(data);
+              const filtered = normalized.filter(v => !v.deleted && v.status !== 'Deleted');
+              setVehicles(filtered);
+              await saveToCache('vehicles', normalized);
+            } else if (!hasMountedCache) {
+              setVehicles(MOCK_VEHICLES);
             }
-          } else {
-            incrementMetric('cacheHits');
+          } else if (error) {
+            console.warn('Supabase query failed, keeping cache/mock fallback', error);
+            if (!hasMountedCache) {
+              setVehicles(MOCK_VEHICLES);
+            }
           }
         } catch (err) {
-          console.warn('Background Supabase revalidation failed, keeping cache/empty', err);
+          console.warn('Background Supabase revalidation failed, keeping cache/mock fallback', err);
           if (!hasMountedCache) {
-            setVehicles([]);
+            setVehicles(MOCK_VEHICLES);
           }
         }
       } else {
         // Local mode fallback if no cached vehicles are found
         if (!hasMountedCache) {
-          setVehicles([]);
+          setVehicles(MOCK_VEHICLES);
         }
       }
     } catch (error) {
