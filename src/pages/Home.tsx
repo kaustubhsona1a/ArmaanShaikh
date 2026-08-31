@@ -42,8 +42,8 @@ export default function Home() {
         <meta name="twitter:card" content="summary_large_image" />
       </Helmet>
 
-      {/* Hero Space - Full Viewport Fold with Centered Action Buttons */}
-      <section className="relative h-[calc(100dvh-4.5rem)] sm:h-[calc(100dvh-5rem)] min-h-[520px] flex flex-col items-center justify-center py-12 sm:py-16 overflow-hidden px-4 sm:px-8 md:px-16 text-center z-20 pointer-events-none">
+      {/* Hero Space - Full Viewport Fold with Action Buttons placed near bottom of hero */}
+      <section className="relative h-[calc(100dvh-4.5rem)] sm:h-[calc(100dvh-5rem)] min-h-[520px] flex flex-col items-center justify-end pb-16 sm:pb-20 md:pb-24 pt-12 overflow-hidden px-4 sm:px-8 md:px-16 text-center z-20 pointer-events-none">
         
         <div className="w-full max-w-xl md:max-w-3xl mx-auto flex flex-row items-center justify-center gap-4 sm:gap-6 md:gap-8 pointer-events-auto">
           

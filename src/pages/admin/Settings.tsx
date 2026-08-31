@@ -64,6 +64,8 @@ export default function AdminSettings() {
   
   const [reelUrl, setReelUrl] = useState('');
   const [customAboutUrl, setCustomAboutUrl] = useState('');
+  const [customHeroImageUrl, setCustomHeroImageUrl] = useState('');
+  const [customHeroMobileImageUrl, setCustomHeroMobileImageUrl] = useState('');
   const [customHeroVideoUrl, setCustomHeroVideoUrl] = useState('');
   const [customHeroMobileVideoUrl, setCustomHeroMobileVideoUrl] = useState('');
 
@@ -80,8 +82,8 @@ export default function AdminSettings() {
           logo: 'Logo',
           homeHeroVideo: 'Home Hero Video',
           homeHeroMobileVideo: 'Home Hero Mobile Video',
-          homeHeroImage: 'Home Hero Photo',
-          homeHeroMobileImage: 'Home Hero Mobile Photo',
+          homeHeroImage: 'Desktop Showroom Background Photo',
+          homeHeroMobileImage: 'Mobile Showroom Background Photo',
           aboutImage: 'About Image'
         };
         const labelText = labels[key] || 'Asset';
@@ -97,10 +99,12 @@ export default function AdminSettings() {
     }
   };
 
-  const handleSaveUrl = (key: 'aboutImage' | 'homeHeroVideo' | 'homeHeroMobileVideo', url: string) => {
+  const handleSaveUrl = (key: 'aboutImage' | 'homeHeroVideo' | 'homeHeroMobileVideo' | 'homeHeroImage' | 'homeHeroMobileImage', url: string) => {
     if (url.trim()) {
       updateSiteConfig({ [key]: url.trim() });
       const labels: Record<string, string> = {
+        homeHeroImage: 'Desktop Hero Photo URL',
+        homeHeroMobileImage: 'Mobile Hero Photo URL',
         homeHeroVideo: 'Hero Video URL',
         homeHeroMobileVideo: 'Hero Mobile Video URL',
         aboutImage: 'About Image URL'
@@ -108,6 +112,8 @@ export default function AdminSettings() {
       const labelText = labels[key] || 'Asset URL';
       setSuccess(`${labelText} updated successfully!`);
       setTimeout(() => setSuccess(''), 3000);
+      if (key === 'homeHeroImage') setCustomHeroImageUrl('');
+      if (key === 'homeHeroMobileImage') setCustomHeroMobileImageUrl('');
       if (key === 'homeHeroVideo') setCustomHeroVideoUrl('');
       if (key === 'homeHeroMobileVideo') setCustomHeroMobileVideoUrl('');
       if (key === 'aboutImage') setCustomAboutUrl('');
@@ -217,31 +223,50 @@ export default function AdminSettings() {
         {/* Home Hero Background Photo (Desktop) */}
         <div className="border-l-2 border-white pl-4">
           <div className="flex items-center space-x-2 mb-1">
-            <h2 className="text-sm font-serif font-bold text-white uppercase tracking-widest">Home Page Background Photo (Desktop)</h2>
+            <h2 className="text-sm font-serif font-bold text-white uppercase tracking-widest">Home Page Background Photo (Desktop / Laptop)</h2>
             <span className="bg-white/10 text-white text-[8px] font-bold font-mono px-2 py-0.5 rounded tracking-wider uppercase border border-white/15">Desktop</span>
             <span className="bg-white text-zinc-950 text-[8px] font-bold font-mono px-2 py-0.5 rounded tracking-wider uppercase">Active</span>
           </div>
-          <p className="text-zinc-500 text-[10px] uppercase font-mono tracking-wider mb-6">High-resolution horizontal showcase image displayed as the desktop homepage background.</p>
+          <p className="text-zinc-500 text-[10px] uppercase font-mono tracking-wider mb-6">Widescreen 16:9 showcase image displayed as the desktop and laptop homepage background.</p>
           <div className="flex flex-col md:flex-row items-stretch md:items-start gap-6">
-            <div className="w-52 aspect-video overflow-hidden rounded-xl border border-white/5 bg-zinc-900/30 shrink-0 relative shadow-sm flex items-center justify-center">
-              {siteConfig.homeHeroImage ? (
-                <SmartImage src={siteConfig.homeHeroImage} className="w-full h-full object-cover" alt="Hero Desktop Backdrop" />
-              ) : (
-                <div className="text-center p-4">
-                  <p className="text-[10px] text-zinc-500 font-mono uppercase">No photo configured</p>
-                  <p className="text-[8px] text-zinc-600 font-mono mt-1">Default dark solid background will show</p>
-                </div>
-              )}
+            <div className="w-56 aspect-video overflow-hidden rounded-xl border border-white/5 bg-zinc-900/30 shrink-0 relative shadow-sm flex items-center justify-center">
+              <SmartImage src={siteConfig.homeHeroImage || '/hero-laptop.png'} className="w-full h-full object-cover" alt="Hero Desktop Backdrop" />
             </div>
             <div className="flex-grow space-y-4">
-              <label className="block w-full cursor-pointer bg-zinc-900/25 border-2 border-dashed border-white/10 hover:border-white hover:bg-white/5 rounded-xl p-6 transition-all text-center">
+              <label className="block w-full cursor-pointer bg-zinc-900/25 border-2 border-dashed border-white/10 hover:border-white hover:bg-white/5 rounded-xl p-5 transition-all text-center">
                 <input type="file" accept="image/*" className="hidden" disabled={isCompressing} onChange={(e) => handleImageUpload(e, 'homeHeroImage')} />
-                <UploadCloud className="w-8 h-8 text-zinc-500 mx-auto mb-2" />
+                <UploadCloud className="w-7 h-7 text-zinc-400 mx-auto mb-2" />
                 <p className="text-xs font-bold text-white font-mono uppercase tracking-wider">
-                  {isCompressing ? 'Uploading Photo...' : 'Upload Showroom Background Photo'}
+                  {isCompressing ? 'Uploading Photo...' : 'Upload New Desktop Background (from Laptop/PC)'}
                 </p>
-                <p className="text-[10px] text-zinc-550 font-mono mt-0.5 uppercase tracking-wider">Supports JPG, PNG format files (uploads directly to Supabase)</p>
+                <p className="text-[10px] text-zinc-500 font-mono mt-0.5 uppercase tracking-wider">Select your 16:9 widescreen photo (PNG, JPG)</p>
               </label>
+
+              <div className="flex items-center space-x-2">
+                <input
+                  type="text"
+                  placeholder="Or enter direct photo URL (https://...)"
+                  value={customHeroImageUrl}
+                  onChange={(e) => setCustomHeroImageUrl(e.target.value)}
+                  className="flex-grow bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-white font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleSaveUrl('homeHeroImage', customHeroImageUrl)}
+                  className="bg-white text-zinc-950 font-bold px-4 py-2.5 rounded-xl text-xs uppercase font-mono tracking-wider hover:bg-zinc-200 transition-all shrink-0"
+                >
+                  Save URL
+                </button>
+                {siteConfig.homeHeroImage && siteConfig.homeHeroImage !== '/hero-laptop.png' && (
+                  <button
+                    type="button"
+                    onClick={() => updateSiteConfig({ homeHeroImage: '/hero-laptop.png' })}
+                    className="bg-zinc-800 text-zinc-400 font-mono text-[10px] uppercase px-3 py-2.5 rounded-xl hover:text-white transition-all"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -255,27 +280,37 @@ export default function AdminSettings() {
             <span className="bg-white/10 text-white text-[8px] font-bold font-mono px-2 py-0.5 rounded tracking-wider uppercase border border-white/15">Mobile</span>
             <span className="bg-white text-zinc-950 text-[8px] font-bold font-mono px-2 py-0.5 rounded tracking-wider uppercase">Active</span>
           </div>
-          <p className="text-zinc-500 text-[10px] uppercase font-mono tracking-wider mb-6">Optional portrait showcase image optimized for mobile devices.</p>
+          <p className="text-zinc-500 text-[10px] uppercase font-mono tracking-wider mb-6">Vertical portrait showcase image optimized for smartphones.</p>
           <div className="flex flex-col md:flex-row items-stretch md:items-start gap-6">
-            <div className="w-52 h-44 overflow-hidden rounded-xl border border-white/5 bg-zinc-900/30 shrink-0 relative shadow-sm flex items-center justify-center">
-              {siteConfig.homeHeroMobileImage ? (
-                <SmartImage src={siteConfig.homeHeroMobileImage} className="w-full h-full object-cover" alt="Hero Mobile Backdrop" />
-              ) : (
-                <div className="text-center p-4">
-                  <p className="text-[10px] text-zinc-500 font-mono uppercase">No mobile photo</p>
-                  <p className="text-[8px] text-zinc-600 font-mono mt-1">Falls back to Desktop Photo</p>
-                </div>
-              )}
+            <div className="w-56 h-40 overflow-hidden rounded-xl border border-white/5 bg-zinc-900/30 shrink-0 relative shadow-sm flex items-center justify-center">
+              <SmartImage src={siteConfig.homeHeroMobileImage || '/hero-mobile.png'} className="w-full h-full object-cover" alt="Hero Mobile Backdrop" />
             </div>
             <div className="flex-grow space-y-4">
-              <label className="block w-full cursor-pointer bg-zinc-900/25 border-2 border-dashed border-white/10 hover:border-white hover:bg-white/5 rounded-xl p-6 transition-all text-center">
+              <label className="block w-full cursor-pointer bg-zinc-900/25 border-2 border-dashed border-white/10 hover:border-white hover:bg-white/5 rounded-xl p-5 transition-all text-center">
                 <input type="file" accept="image/*" className="hidden" disabled={isCompressing} onChange={(e) => handleImageUpload(e, 'homeHeroMobileImage')} />
-                <UploadCloud className="w-8 h-8 text-zinc-500 mx-auto mb-2" />
+                <UploadCloud className="w-7 h-7 text-zinc-400 mx-auto mb-2" />
                 <p className="text-xs font-bold text-white font-mono uppercase tracking-wider">
                   {isCompressing ? 'Uploading Mobile Photo...' : 'Upload Mobile Background Photo'}
                 </p>
-                <p className="text-[10px] text-zinc-550 font-mono mt-0.5 uppercase tracking-wider">Supports JPG, PNG format files (uploads directly to Supabase)</p>
+                <p className="text-[10px] text-zinc-500 font-mono mt-0.5 uppercase tracking-wider">Supports JPG, PNG format files</p>
               </label>
+
+              <div className="flex items-center space-x-2">
+                <input
+                  type="text"
+                  placeholder="Or enter direct mobile photo URL (https://...)"
+                  value={customHeroMobileImageUrl}
+                  onChange={(e) => setCustomHeroMobileImageUrl(e.target.value)}
+                  className="flex-grow bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-white font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleSaveUrl('homeHeroMobileImage', customHeroMobileImageUrl)}
+                  className="bg-white text-zinc-950 font-bold px-4 py-2.5 rounded-xl text-xs uppercase font-mono tracking-wider hover:bg-zinc-200 transition-all shrink-0"
+                >
+                  Save URL
+                </button>
+              </div>
             </div>
           </div>
         </div>

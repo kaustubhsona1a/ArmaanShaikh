@@ -116,8 +116,8 @@ export default function CustomerLayout() {
     }
   };
 
-  const showVideo = false;
-  const showMobileVideo = false;
+  const heroDesktopImage = siteConfig?.homeHeroImage || '/hero-laptop.png';
+  const heroMobileImage = siteConfig?.homeHeroMobileImage || heroDesktopImage || '/hero-mobile.png';
 
   return (
     <div className="min-h-screen flex flex-col font-sans text-zinc-300 relative bg-transparent">
@@ -129,16 +129,22 @@ export default function CustomerLayout() {
         </div>
       )}
 
-          {/* Global Background - Showroom Backdrop fetched directly from public folder of the build */}
-      <div className="fixed top-0 bottom-0 left-0 right-0 z-0 bg-[#070709] overflow-hidden pointer-events-none">
+      {/* Global Background - Showroom Backdrop */}
+      <div className="fixed top-0 bottom-0 left-0 right-0 z-0 bg-[#070709] overflow-hidden pointer-events-none flex items-center justify-center">
         <picture className="absolute inset-0 w-full h-full">
-          <source media="(max-width: 767px)" srcSet="/hero-mobile.png" />
+          <source media="(max-width: 767px)" srcSet={heroMobileImage} />
           <img 
-            src="/hero-laptop.png" 
-            alt="Showroom Backdrop" 
+            src={heroDesktopImage} 
+            alt="Bombay Motors Showroom" 
             loading="eager" 
             decoding="async" 
-            className="w-full h-full object-cover object-center" 
+            className="w-full h-full object-cover md:object-contain object-center md:object-top" 
+            onError={(e) => {
+              const target = e.currentTarget as HTMLImageElement;
+              if (target.src !== '/hero-mobile.png' && target.src !== heroMobileImage) {
+                target.src = '/hero-mobile.png';
+              }
+            }}
           />
         </picture>
         {/* Crystal-clear Base Gradient for Hero */}
