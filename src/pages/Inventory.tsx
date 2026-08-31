@@ -1,14 +1,16 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { formatPrice, BODY_TYPES } from '../data/mockData';
 import { Search, Filter, Car, Gauge, Fuel, Cog, Instagram } from 'lucide-react';
 import { useVehicles } from '../context/VehicleContext';
 import { SmartImage, VEHICLE_PLACEHOLDER_FALLBACK } from '../components/SmartImage';
 
+const SCROLL_POS_KEY = 'bm_inventory_scroll_y';
+const SCROLL_CAR_KEY = 'bm_inventory_selected_car_id';
+const FILTERS_STORAGE_KEY = 'bm_inventory_filters';
+
 export default function Inventory() {
   const { vehicles, loading } = useVehicles();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState('newest');
   
   const BUDGET_OPTIONS = [
     1000000,  // Below 10L
@@ -22,15 +24,95 @@ export default function Inventory() {
     5000000,  // Under 50L
     100000000 // 50 Lakh+ / Any
   ];
-  const [budgetIndex, setBudgetIndex] = useState(BUDGET_OPTIONS.length - 1);
-  const [minYear, setMinYear] = useState<number | null>(null);
-  const [selectedBodyTypes, setSelectedBodyTypes] = useState<string[]>([]);
-  const [selectedOwners, setSelectedOwners] = useState<string[]>([]);
-  const [selectedTransmissions, setSelectedTransmissions] = useState<string[]>([]);
-  const [maxMileage, setMaxMileage] = useState<number | null>(null);
-  const [selectedFuelTypes, setSelectedFuelTypes] = useState<string[]>([]);
+
+  // Load saved filters from sessionStorage
+  const getSavedFilters = () => {
+    try {
+      const saved = sessionStorage.getItem(FILTERS_STORAGE_KEY);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      // ignore
+    }
+    return null;
+  };
+
+  const initialFilters = getSavedFilters();
+
+  const [searchTerm, setSearchTerm] = useState<string>(initialFilters?.searchTerm ?? '');
+  const [sortBy, setSortBy] = useState<string>(initialFilters?.sortBy ?? 'newest');
+  const [budgetIndex, setBudgetIndex] = useState<number>(initialFilters?.budgetIndex ?? (BUDGET_OPTIONS.length - 1));
+  const [minYear, setMinYear] = useState<number | null>(initialFilters?.minYear ?? null);
+  const [selectedBodyTypes, setSelectedBodyTypes] = useState<string[]>(initialFilters?.selectedBodyTypes ?? []);
+  const [selectedOwners, setSelectedOwners] = useState<string[]>(initialFilters?.selectedOwners ?? []);
+  const [selectedTransmissions, setSelectedTransmissions] = useState<string[]>(initialFilters?.selectedTransmissions ?? []);
+  const [maxMileage, setMaxMileage] = useState<number | null>(initialFilters?.maxMileage ?? null);
+  const [selectedFuelTypes, setSelectedFuelTypes] = useState<string[]>(initialFilters?.selectedFuelTypes ?? []);
   
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+
+  // Save filters on every filter change
+  useEffect(() => {
+    try {
+      const state = {
+        searchTerm,
+        sortBy,
+        budgetIndex,
+        minYear,
+        selectedBodyTypes,
+        selectedOwners,
+        selectedTransmissions,
+        maxMileage,
+        selectedFuelTypes,
+      };
+      sessionStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(state));
+    } catch (e) {
+      // ignore
+    }
+  }, [searchTerm, sortBy, budgetIndex, minYear, selectedBodyTypes, selectedOwners, selectedTransmissions, maxMileage, selectedFuelTypes]);
+
+  // Seamless Scroll Position Restoration
+  useEffect(() => {
+    if (loading) return;
+
+    try {
+      const targetCarId = sessionStorage.getItem(SCROLL_CAR_KEY);
+      const savedScrollY = sessionStorage.getItem(SCROLL_POS_KEY);
+
+      if (targetCarId) {
+        // Clear immediately so subsequent manual visits don't force scroll
+        sessionStorage.removeItem(SCROLL_CAR_KEY);
+        sessionStorage.removeItem(SCROLL_POS_KEY);
+
+        // Attempt scrolling directly into the exact car element or saved coordinates
+        const timer = setTimeout(() => {
+          const element = document.getElementById(`car-card-${targetCarId}`);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          } else if (savedScrollY) {
+            window.scrollTo({
+              top: parseInt(savedScrollY, 10),
+              behavior: 'smooth'
+            });
+          }
+        }, 120);
+
+        return () => clearTimeout(timer);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [loading]);
+
+  const handleCarClick = (carId: string) => {
+    try {
+      sessionStorage.setItem(SCROLL_POS_KEY, window.scrollY.toString());
+      sessionStorage.setItem(SCROLL_CAR_KEY, carId);
+    } catch (e) {
+      // ignore
+    }
+  };
 
   const availableYears = useMemo(() => {
     const years = vehicles.map(v => typeof v.year === 'number' ? v.year : Number(v.year)).filter(y => Boolean(y) && !isNaN(y));
@@ -147,6 +229,13 @@ export default function Inventory() {
     setSelectedFuelTypes([]);
     setSearchTerm('');
     setSortBy('newest');
+    try {
+      sessionStorage.removeItem(FILTERS_STORAGE_KEY);
+      sessionStorage.removeItem(SCROLL_CAR_KEY);
+      sessionStorage.removeItem(SCROLL_POS_KEY);
+    } catch (e) {
+      // ignore
+    }
   };
 
   const ALL_TRANSMISSIONS = ['Automatic', 'Manual'];
@@ -478,7 +567,13 @@ export default function Inventory() {
               ) : filteredCars.length > 0 ? (
                 filteredCars.map((car) => {
                   return (
-                    <Link key={car.id} to={`/inventory/${car.id}`} className="group block h-full">
+                    <Link 
+                      key={car.id} 
+                      id={`car-card-${car.id}`}
+                      to={`/inventory/${car.id}`} 
+                      onClick={() => handleCarClick(car.id)}
+                      className="group block h-full scroll-mt-28"
+                    >
                       <div className="frost-card hover:-translate-y-1.5 transition-all duration-300 ease-out flex flex-col h-full overflow-hidden rounded-2xl">
                         <div className="relative aspect-[16/10] sm:aspect-video md:aspect-auto md:h-64 overflow-hidden bg-black/60">
                           <SmartImage 
