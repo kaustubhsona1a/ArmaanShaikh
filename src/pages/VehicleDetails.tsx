@@ -13,6 +13,22 @@ export default function VehicleDetails() {
   const [activeImage, setActiveImage] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  // Responsive screen detection so heavy gallery images are only mounted once
+  const [isMobileScreen, setIsMobileScreen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth < 1024;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mediaQuery = window.matchMedia('(max-width: 1023px)');
+    const updateMatches = () => setIsMobileScreen(mediaQuery.matches);
+    mediaQuery.addEventListener('change', updateMatches);
+    return () => mediaQuery.removeEventListener('change', updateMatches);
+  }, []);
+
   // Swipe support states
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
@@ -555,28 +571,28 @@ export default function VehicleDetails() {
           <ChevronLeft className="w-4 h-4 mr-2" /> Back to Collection
         </Link>
 
-        {/* DESKTOP LAYOUT (lg:flex, hidden on mobile) */}
-        <div className="hidden lg:flex gap-12 text-zinc-200">
-          {/* Left Column - Gallery & Details */}
-          <div className="w-full lg:w-2/3 space-y-10">
-            {renderGallery(false)}
-            {renderTechnicalDetails(false)}
+        {/* Single Responsive Layout: Only mounts gallery once in DOM to cut cached egress & bandwidth in half */}
+        {isMobileScreen ? (
+          /* MOBILE LAYOUT */
+          <div className="flex flex-col gap-6 text-zinc-200">
+            {renderGallery(true)}
+            {renderPriceBox(true)}
+            {renderTechnicalDetails(true)}
+            {renderEMICalculator(true)}
           </div>
-
-          {/* Right Column - Price & EMI */}
-          <div className="w-full lg:w-1/3 space-y-8 sticky top-24 self-start">
-            {renderPriceBox(false)}
-            {renderEMICalculator(false)}
+        ) : (
+          /* DESKTOP LAYOUT */
+          <div className="flex gap-12 text-zinc-200">
+            <div className="w-full lg:w-2/3 space-y-10">
+              {renderGallery(false)}
+              {renderTechnicalDetails(false)}
+            </div>
+            <div className="w-full lg:w-1/3 space-y-8 sticky top-24 self-start">
+              {renderPriceBox(false)}
+              {renderEMICalculator(false)}
+            </div>
           </div>
-        </div>
-
-        {/* MOBILE LAYOUT (flex lg:hidden) */}
-        <div className="flex lg:hidden flex-col gap-6 text-zinc-200">
-          {renderGallery(true)}
-          {renderPriceBox(true)}
-          {renderTechnicalDetails(true)}
-          {renderEMICalculator(true)}
-        </div>
+        )}
 
         {/* Certified preowned section */}
         <div className="mt-6 md:mt-10 frost-card p-5 md:p-10 rounded-2xl relative overflow-hidden group shadow-xl">

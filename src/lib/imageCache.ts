@@ -142,6 +142,77 @@ export function isCacheableUrl(url: string | undefined): boolean {
 }
 
 /**
+ * Checks in-memory, IndexedDB, and CacheStorage for a cached Blob URL.
+ * Returns null if not cached, WITHOUT initiating any network fetches.
+ * This completely prevents duplicate parallel network downloads.
+ */
+export async function getCachedBlobUrl(url: string): Promise<string | null> {
+  if (!isCacheableUrl(url)) {
+    return null;
+  }
+
+  // Tier 1: In-Memory Fast Map (Instant 0ms)
+  if (memoryBlobMap.has(url)) {
+    return memoryBlobMap.get(url)!;
+  }
+
+  // Tier 2: Persistent IndexedDB
+  try {
+    const idbBlob = await getFromIDB(url);
+    if (idbBlob && idbBlob.size > 0) {
+      const blobUrl = URL.createObjectURL(idbBlob);
+      memoryBlobMap.set(url, blobUrl);
+      return blobUrl;
+    }
+  } catch {
+    // Continue to CacheStorage
+  }
+
+  // Tier 3: CacheStorage API
+  if (typeof window !== 'undefined' && 'caches' in window) {
+    try {
+      const cache = await caches.open(CACHE_STORAGE_NAME);
+      const cachedResponse = await cache.match(url);
+      if (cachedResponse) {
+        const blob = await cachedResponse.blob();
+        if (blob && blob.size > 0) {
+          saveToIDB(url, blob);
+          const blobUrl = URL.createObjectURL(blob);
+          memoryBlobMap.set(url, blobUrl);
+          return blobUrl;
+        }
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Stores a blob in memory, IndexedDB, and CacheStorage
+ */
+export function cacheImageBlob(url: string, blob: Blob): string {
+  saveToIDB(url, blob);
+  if (typeof window !== 'undefined' && 'caches' in window) {
+    caches.open(CACHE_STORAGE_NAME).then((cache) => {
+      try {
+        cache.put(url, new Response(blob, {
+          headers: {
+            'Content-Type': blob.type,
+            'Cache-Control': 'public, max-age=31536000, immutable'
+          }
+        }));
+      } catch {}
+    }).catch(() => {});
+  }
+  const blobUrl = URL.createObjectURL(blob);
+  memoryBlobMap.set(url, blobUrl);
+  return blobUrl;
+}
+
+/**
  * Retrieves a cached Blob Object URL for an image or fetches and caches it permanently
  */
 export async function getCachedImageUrl(url: string): Promise<string> {

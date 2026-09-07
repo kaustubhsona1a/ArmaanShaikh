@@ -1,15 +1,29 @@
 import React, { useState } from 'react';
 import { useVehicles, sanitizeHeroImage } from '../../context/VehicleContext';
-import { UploadCloud, Trash2, Plus, Image as ImageIcon, Link as LinkIcon, AlertCircle, Wifi, WifiOff, Check } from 'lucide-react';
-import { uploadImageToStorage, cleanupLegacyImageVariants, supabase } from '../../lib/supabase';
+import { UploadCloud, Trash2, Plus, Image as ImageIcon, Link as LinkIcon, AlertCircle, Wifi, WifiOff, Check, Zap, HardDrive, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { uploadImageToStorage, cleanupLegacyImageVariants, batchOptimizeAllVehicles, supabase } from '../../lib/supabase';
 import { SmartImage } from '../../components/SmartImage';
 
 export default function AdminSettings() {
-  const { siteConfig, updateSiteConfig } = useVehicles();
+  const { siteConfig, updateSiteConfig, refreshVehicles } = useVehicles();
   const [success, setSuccess] = useState('');
   const [errorText, setErrorText] = useState('');
   const [isCompressing, setIsCompressing] = useState(false);
   const [isCleaning, setIsCleaning] = useState(false);
+  const [isOptimizingFleet, setIsOptimizingFleet] = useState(false);
+  const [optimizeProgress, setOptimizeProgress] = useState<{
+    currentVehicle: number;
+    totalVehicles: number;
+    imagesProcessed: number;
+    bytesSaved: number;
+    currentCarName: string;
+  } | null>(null);
+  const [optimizeSummary, setOptimizeSummary] = useState<{
+    vehiclesProcessed: number;
+    imagesOptimized: number;
+    totalBytesSaved: number;
+  } | null>(null);
+
   const [supabaseStatus, setSupabaseStatus] = useState<'checking' | 'connected' | 'not_configured' | 'error'>('checking');
   const [supabaseErrorMsg, setSupabaseErrorMsg] = useState('');
 
@@ -58,6 +72,38 @@ export default function AdminSettings() {
       setErrorText('Failed to perform cleanup.');
     } finally {
       setIsCleaning(false);
+    }
+  };
+
+  const handleRunFleetOptimization = async () => {
+    setIsOptimizingFleet(true);
+    setErrorText('');
+    setOptimizeSummary(null);
+    setOptimizeProgress({
+      currentVehicle: 0,
+      totalVehicles: 0,
+      imagesProcessed: 0,
+      bytesSaved: 0,
+      currentCarName: 'Starting image scanner...'
+    });
+
+    try {
+      const result = await batchOptimizeAllVehicles((progress) => {
+        setOptimizeProgress(progress);
+      });
+
+      setOptimizeSummary(result);
+      if (refreshVehicles) {
+        await refreshVehicles();
+      }
+      setSuccess(`Image optimization completed! Compressed ${result.imagesOptimized} vehicle photos and saved ${(result.totalBytesSaved / (1024 * 1024)).toFixed(2)} MB of bandwidth & storage.`);
+      setTimeout(() => setSuccess(''), 8000);
+    } catch (err: any) {
+      console.error('[FLEET OPTIMIZE ERROR]', err);
+      setErrorText(err.message || 'Failed to complete fleet image optimization.');
+      setTimeout(() => setErrorText(''), 6000);
+    } finally {
+      setIsOptimizingFleet(false);
     }
   };
 
@@ -463,6 +509,122 @@ export default function AdminSettings() {
             </div>
 
           </div>
+        </div>
+
+        <hr className="border-white/5" />
+
+        {/* Bandwidth & Storage (Cached Egress Shield) */}
+        <div className="border border-white/10 bg-zinc-950/60 p-6 sm:p-8 rounded-2xl shadow-xl">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 bg-amber-500/10 text-amber-400 rounded-lg border border-amber-500/20">
+                  <Zap className="w-4 h-4" />
+                </span>
+                <h2 className="text-base font-serif font-bold text-white uppercase tracking-widest">
+                  Bandwidth & Storage Optimizer (Egress Shield)
+                </h2>
+              </div>
+              <p className="text-zinc-400 text-xs mt-1 font-mono">
+                Solves Supabase "Cached Egress" limits by automatically shrinking vehicle photos down to lightweight WebP (~100KB) and activating client-side caching.
+              </p>
+            </div>
+            
+            <button
+              type="button"
+              disabled={isOptimizingFleet}
+              onClick={handleRunFleetOptimization}
+              className={`px-5 py-3 rounded-xl text-xs uppercase font-mono font-bold tracking-wider flex items-center shrink-0 transition-all ${
+                isOptimizingFleet
+                  ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
+                  : 'bg-amber-500 hover:bg-amber-400 text-zinc-950 shadow-lg shadow-amber-500/10'
+              }`}
+            >
+              {isOptimizingFleet ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Optimizing Fleet...
+                </>
+              ) : (
+                <>
+                  <HardDrive className="w-4 h-4 mr-2" />
+                  Run 1-Click Fleet Image Optimizer
+                </>
+              )}
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 my-6">
+            <div className="bg-black/30 border border-white/5 p-4 rounded-xl">
+              <p className="text-[10px] uppercase font-mono text-zinc-500 tracking-wider">Browser Egress Shield</p>
+              <div className="flex items-center gap-2 mt-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span className="text-xs font-bold text-white font-mono uppercase">Active (IndexedDB + CacheStorage)</span>
+              </div>
+              <p className="text-[9px] text-zinc-500 mt-1 font-mono">
+                Images load 0 bytes on repeat views across tabs and visits.
+              </p>
+            </div>
+
+            <div className="bg-black/30 border border-white/5 p-4 rounded-xl">
+              <p className="text-[10px] uppercase font-mono text-zinc-500 tracking-wider">Viewport Intersection Guard</p>
+              <div className="flex items-center gap-2 mt-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span className="text-xs font-bold text-white font-mono uppercase">Active (Lazy Intersection)</span>
+              </div>
+              <p className="text-[9px] text-zinc-500 mt-1 font-mono">
+                Only cars scrolled into view are fetched from storage.
+              </p>
+            </div>
+
+            <div className="bg-black/30 border border-white/5 p-4 rounded-xl">
+              <p className="text-[10px] uppercase font-mono text-zinc-500 tracking-wider">Upload Compressor</p>
+              <div className="flex items-center gap-2 mt-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span className="text-xs font-bold text-white font-mono uppercase">Active (1200px WebP)</span>
+              </div>
+              <p className="text-[9px] text-zinc-500 mt-1 font-mono">
+                All newly added vehicles are compressed before upload.
+              </p>
+            </div>
+          </div>
+
+          {/* Real-time Progress Bar */}
+          {isOptimizingFleet && optimizeProgress && (
+            <div className="bg-amber-500/5 border border-amber-500/20 p-5 rounded-xl space-y-3">
+              <div className="flex justify-between text-xs font-mono text-amber-300 font-bold">
+                <span>Optimizing: {optimizeProgress.currentCarName}</span>
+                <span>Vehicle {optimizeProgress.currentVehicle} of {optimizeProgress.totalVehicles}</span>
+              </div>
+              <div className="w-full bg-black/60 rounded-full h-2 overflow-hidden border border-white/10">
+                <div 
+                  className="bg-amber-500 h-full transition-all duration-300 rounded-full"
+                  style={{
+                    width: `${optimizeProgress.totalVehicles > 0 ? (optimizeProgress.currentVehicle / optimizeProgress.totalVehicles) * 100 : 0}%`
+                  }}
+                />
+              </div>
+              <div className="flex justify-between text-[10px] font-mono text-zinc-400">
+                <span>{optimizeProgress.imagesProcessed} photos processed</span>
+                <span>{(optimizeProgress.bytesSaved / (1024 * 1024)).toFixed(2)} MB bandwidth saved so far</span>
+              </div>
+            </div>
+          )}
+
+          {/* Results Summary */}
+          {optimizeSummary && !isOptimizingFleet && (
+            <div className="bg-emerald-500/10 border border-emerald-500/30 p-4 rounded-xl flex items-center justify-between text-emerald-300 font-mono text-xs">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                <span>
+                  Fleet optimization complete! {optimizeSummary.imagesOptimized} vehicle photos compressed.
+                </span>
+              </div>
+              <span className="font-bold text-white bg-emerald-500/20 px-3 py-1 rounded-lg border border-emerald-500/30">
+                {(optimizeSummary.totalBytesSaved / (1024 * 1024)).toFixed(2)} MB Saved
+              </span>
+            </div>
+          )}
         </div>
 
       </div>

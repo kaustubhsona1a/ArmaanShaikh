@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { resolveImageUrl } from '../lib/imageCache';
+import React, { useState, useEffect, useRef } from 'react';
+import { resolveImageUrl, getCachedBlobUrl, getInMemoryImageUrl, isCacheableUrl } from '../lib/imageCache';
 
 interface SmartImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   fallbackSrc?: string;
@@ -19,18 +19,85 @@ export const SmartImage: React.FC<SmartImageProps> = ({
   ...props
 }) => {
   const resolved = resolveImageUrl(src);
-  const [currentSrc, setCurrentSrc] = useState<string>(resolved || fallbackSrc);
+  const inMemory = getInMemoryImageUrl(resolved);
+  
+  const [currentSrc, setCurrentSrc] = useState<string>(inMemory || resolved || fallbackSrc);
   const [isFailed, setIsFailed] = useState<boolean>(false);
+  const [isInView, setIsInView] = useState<boolean>(loading === 'eager');
+  const imgRef = useRef<HTMLImageElement | null>(null);
 
+  // Lazy viewport observer to ensure images offscreen are never fetched prematurely
+  useEffect(() => {
+    if (loading === 'eager' || typeof window === 'undefined' || !('IntersectionObserver' in window)) {
+      setIsInView(true);
+      return;
+    }
+
+    if (!imgRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (entry.isIntersecting) {
+          setIsInView(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '250px 0px', threshold: 0.01 }
+    );
+
+    observer.observe(imgRef.current);
+    return () => observer.disconnect();
+  }, [loading]);
+
+  // Handle caching and source updates when in view
   useEffect(() => {
     const nextResolved = resolveImageUrl(src);
-    if (nextResolved) {
+    if (!nextResolved) {
+      setCurrentSrc(fallbackSrc);
+      return;
+    }
+
+    // 1. Instant in-memory check (0ms)
+    const cached = getInMemoryImageUrl(nextResolved);
+    if (cached) {
+      setCurrentSrc(cached);
+      setIsFailed(false);
+      return;
+    }
+
+    let isMounted = true;
+
+    // 2. Check persistent IndexedDB before network to guarantee 0 bytes on repeat visits
+    if (isCacheableUrl(nextResolved)) {
+      getCachedBlobUrl(nextResolved)
+        .then((blobUrl) => {
+          if (!isMounted) return;
+          if (blobUrl) {
+            setCurrentSrc(blobUrl);
+            setIsFailed(false);
+          } else {
+            // Not in local storage: set network source directly
+            // Native HTTP disk cache (Cache-Control: public, max-age=31536000) stores it without duplicate fetches
+            setCurrentSrc(nextResolved);
+            setIsFailed(false);
+          }
+        })
+        .catch(() => {
+          if (isMounted) {
+            setCurrentSrc(nextResolved);
+            setIsFailed(false);
+          }
+        });
+    } else {
       setCurrentSrc(nextResolved);
       setIsFailed(false);
-    } else {
-      setCurrentSrc(fallbackSrc);
     }
-  }, [src, fallbackSrc]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [src, fallbackSrc, isInView]);
 
   const handleError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
     if (!isFailed) {
@@ -44,13 +111,14 @@ export const SmartImage: React.FC<SmartImageProps> = ({
     }
   };
 
-  if (!currentSrc) {
-    return null;
+  if (!currentSrc && !isInView) {
+    return <div ref={imgRef} className={className} />;
   }
 
   return (
     <img
-      src={currentSrc}
+      ref={imgRef}
+      src={isInView ? currentSrc : (inMemory || fallbackSrc)}
       alt={alt}
       loading={loading}
       decoding={decoding}

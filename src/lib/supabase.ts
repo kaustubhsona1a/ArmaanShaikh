@@ -442,4 +442,171 @@ export async function uploadMultipleImagesToStorage(
   return { successful, failed };
 }
 
+/**
+ * Optimizes a remote image hosted on Supabase storage by fetching, downscaling to HD 1200px,
+ * compressing to lightweight WebP, re-uploading and deleting the bloated predecessor.
+ */
+export async function optimizeRemoteStorageImage(
+  imageUrl: string,
+  bucket: string = 'vehicle-images'
+): Promise<{ url: string; bytesSaved: number; wasOptimized: boolean }> {
+  if (!imageUrl || typeof imageUrl !== 'string' || imageUrl.startsWith('data:') || imageUrl.startsWith('/')) {
+    return { url: imageUrl, bytesSaved: 0, wasOptimized: false };
+  }
+
+  // Only optimize Supabase Storage URLs
+  if (!imageUrl.includes('supabase.co/storage/')) {
+    return { url: imageUrl, bytesSaved: 0, wasOptimized: false };
+  }
+
+  try {
+    const res = await fetch(imageUrl, { cache: 'no-cache' });
+    if (!res.ok) return { url: imageUrl, bytesSaved: 0, wasOptimized: false };
+
+    const initialBlob = await res.blob();
+    const initialSize = initialBlob.size;
+
+    // If image is already lightweight WebP under 180KB, skip re-compression
+    if (initialSize < 180 * 1024 && (initialBlob.type === 'image/webp' || imageUrl.endsWith('.webp'))) {
+      return { url: imageUrl, bytesSaved: 0, wasOptimized: false };
+    }
+
+    const pseudoFile = new File([initialBlob], 'recompressed_photo.jpg', {
+      type: initialBlob.type || 'image/jpeg'
+    });
+
+    const compressed = await compressImage(pseudoFile, { maxDimension: 1200, targetQuality: 0.70 });
+    
+    // Only upload if compression actually reduced the file size
+    if (compressed.size >= initialSize) {
+      return { url: imageUrl, bytesSaved: 0, wasOptimized: false };
+    }
+
+    const uniqueId = `opt_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    const newFileName = `${uniqueId}.webp`;
+    const newPath = `vehicles/${newFileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(bucket)
+      .upload(newPath, compressed, {
+        cacheControl: '31536000',
+        upsert: true,
+        contentType: 'image/webp'
+      });
+
+    if (uploadError) {
+      console.warn('[REMOTE OPT UPLOAD ERROR]', uploadError);
+      return { url: imageUrl, bytesSaved: 0, wasOptimized: false };
+    }
+
+    const { data: publicUrlData } = supabase.storage.from(bucket).getPublicUrl(newPath);
+    if (!publicUrlData?.publicUrl) {
+      return { url: imageUrl, bytesSaved: 0, wasOptimized: false };
+    }
+
+    // Delete old oversized file to reclaim storage space
+    try {
+      await deleteImagesFromStorage([imageUrl], bucket);
+    } catch {}
+
+    const bytesSaved = initialSize - compressed.size;
+    return {
+      url: publicUrlData.publicUrl,
+      bytesSaved,
+      wasOptimized: true
+    };
+  } catch (err) {
+    console.warn('[OPTIMIZE REMOTE IMAGE ERROR]', err);
+    return { url: imageUrl, bytesSaved: 0, wasOptimized: false };
+  }
+}
+
+/**
+ * Runs a complete fleet-wide image audit & compression on Supabase.
+ * Shrinks 5MB-10MB legacy car photos down to ~100KB WebP files, cutting egress by 90-95%.
+ */
+export async function batchOptimizeAllVehicles(
+  onProgress?: (progress: {
+    currentVehicle: number;
+    totalVehicles: number;
+    imagesProcessed: number;
+    bytesSaved: number;
+    currentCarName: string;
+  }) => void
+): Promise<{ vehiclesProcessed: number; imagesOptimized: number; totalBytesSaved: number }> {
+  let imagesOptimized = 0;
+  let totalBytesSaved = 0;
+
+  // 1. Fetch all active vehicles with their vehicle_images relations from database
+  const { data: vehiclesData, error } = await supabase
+    .from('vehicles')
+    .select('id, make, model, is_deleted, vehicle_images(id, image_url, display_order)')
+    .eq('is_deleted', false);
+
+  if (error || !vehiclesData || vehiclesData.length === 0) {
+    return { vehiclesProcessed: 0, imagesOptimized: 0, totalBytesSaved: 0 };
+  }
+
+  const totalVehicles = vehiclesData.length;
+
+  for (let i = 0; i < totalVehicles; i++) {
+    const v = vehiclesData[i];
+    const carName = `${v.make} ${v.model}`;
+    const rawImages: Array<{ id: string | number; image_url: string; display_order?: number }> = 
+      Array.isArray(v.vehicle_images)
+        ? [...v.vehicle_images].sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))
+        : [];
+    let vehicleModified = false;
+
+    if (onProgress) {
+      onProgress({
+        currentVehicle: i + 1,
+        totalVehicles,
+        imagesProcessed: imagesOptimized,
+        bytesSaved: totalBytesSaved,
+        currentCarName: carName
+      });
+    }
+
+    for (const imgRecord of rawImages) {
+      const imgUrl = (imgRecord.image_url || '').trim();
+      if (imgUrl && imgUrl.includes('supabase.co/storage/')) {
+        const result = await optimizeRemoteStorageImage(imgUrl, 'vehicle-images');
+        if (result.wasOptimized && result.url !== imgUrl) {
+          imagesOptimized++;
+          totalBytesSaved += result.bytesSaved;
+          vehicleModified = true;
+
+          // Update this specific vehicle_images row with the optimized WebP URL
+          await supabase
+            .from('vehicle_images')
+            .update({ image_url: result.url })
+            .eq('id', imgRecord.id);
+        }
+      }
+    }
+
+    // If any images were compressed for this vehicle, update vehicle timestamp
+    if (vehicleModified) {
+      await supabase
+        .from('vehicles')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', v.id);
+    }
+  }
+
+  // Update metadata version so all connected clients reload the lightweight images
+  try {
+    await supabase
+      .from('metadata_versions')
+      .upsert({ key: 'vehicles', version: Date.now(), updated_at: new Date().toISOString() });
+  } catch {}
+
+  return {
+    vehiclesProcessed: totalVehicles,
+    imagesOptimized,
+    totalBytesSaved
+  };
+}
+
 

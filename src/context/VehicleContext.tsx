@@ -543,6 +543,12 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
             console.warn('[SUPABASE SETTINGS FETCH SKIP]', settingsErr);
           }
 
+          // If we already have cached vehicles and the remote version has not changed, skip re-querying all vehicles
+          if (hasMountedCache && localVersion > 0 && remoteVersion === localVersion) {
+            setLoading(false);
+            return;
+          }
+
           // 2b. Fetch vehicles from Supabase with relations
           incrementMetric('supabaseReads');
           const { data, error } = await supabase
@@ -556,6 +562,7 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
               const filtered = normalized.filter(v => !v.deleted && v.status !== 'Deleted');
               setVehicles(filtered);
               await saveToCache('vehicles', normalized);
+              await saveToCache('vehicles_version', remoteVersion);
             } else if (!hasMountedCache) {
               setVehicles(MOCK_VEHICLES);
             }

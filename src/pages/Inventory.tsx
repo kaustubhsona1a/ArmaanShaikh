@@ -8,6 +8,8 @@ import { SmartImage, VEHICLE_PLACEHOLDER_FALLBACK } from '../components/SmartIma
 const SCROLL_POS_KEY = 'bm_inventory_scroll_y';
 const SCROLL_CAR_KEY = 'bm_inventory_selected_car_id';
 const FILTERS_STORAGE_KEY = 'bm_inventory_filters';
+const VISIBLE_COUNT_KEY = 'bm_inventory_visible_count';
+const INITIAL_BATCH_SIZE = 16;
 
 export default function Inventory() {
   const { vehicles, loading } = useVehicles();
@@ -52,6 +54,23 @@ export default function Inventory() {
   
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
 
+  // Progressive batch rendering to slash Supabase Cached Egress on initial page loads
+  const [visibleCount, setVisibleCount] = useState<number>(() => {
+    try {
+      const saved = sessionStorage.getItem(VISIBLE_COUNT_KEY);
+      if (saved) {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed) && parsed > 0) return parsed;
+      }
+    } catch {}
+    return INITIAL_BATCH_SIZE;
+  });
+
+  // Reset batch count when filter criteria change
+  useEffect(() => {
+    setVisibleCount(INITIAL_BATCH_SIZE);
+  }, [searchTerm, sortBy, budgetIndex, minYear, selectedBodyTypes, selectedOwners, selectedTransmissions, maxMileage, selectedFuelTypes]);
+
   // Save filters on every filter change
   useEffect(() => {
     try {
@@ -71,48 +90,6 @@ export default function Inventory() {
       // ignore
     }
   }, [searchTerm, sortBy, budgetIndex, minYear, selectedBodyTypes, selectedOwners, selectedTransmissions, maxMileage, selectedFuelTypes]);
-
-  // Seamless Scroll Position Restoration
-  useEffect(() => {
-    if (loading) return;
-
-    try {
-      const targetCarId = sessionStorage.getItem(SCROLL_CAR_KEY);
-      const savedScrollY = sessionStorage.getItem(SCROLL_POS_KEY);
-
-      if (targetCarId) {
-        // Clear immediately so subsequent manual visits don't force scroll
-        sessionStorage.removeItem(SCROLL_CAR_KEY);
-        sessionStorage.removeItem(SCROLL_POS_KEY);
-
-        // Attempt scrolling directly into the exact car element or saved coordinates
-        const timer = setTimeout(() => {
-          const element = document.getElementById(`car-card-${targetCarId}`);
-          if (element) {
-            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          } else if (savedScrollY) {
-            window.scrollTo({
-              top: parseInt(savedScrollY, 10),
-              behavior: 'smooth'
-            });
-          }
-        }, 120);
-
-        return () => clearTimeout(timer);
-      }
-    } catch (e) {
-      // ignore
-    }
-  }, [loading]);
-
-  const handleCarClick = (carId: string) => {
-    try {
-      sessionStorage.setItem(SCROLL_POS_KEY, window.scrollY.toString());
-      sessionStorage.setItem(SCROLL_CAR_KEY, carId);
-    } catch (e) {
-      // ignore
-    }
-  };
 
   const availableYears = useMemo(() => {
     const years = vehicles.map(v => typeof v.year === 'number' ? v.year : Number(v.year)).filter(y => Boolean(y) && !isNaN(y));
@@ -202,6 +179,59 @@ export default function Inventory() {
     
     return result;
   }, [vehicles, searchTerm, sortBy, budgetIndex, minYear, selectedBodyTypes, selectedOwners, selectedTransmissions, maxMileage, selectedFuelTypes]);
+
+  const displayedCars = useMemo(() => {
+    return filteredCars.slice(0, visibleCount);
+  }, [filteredCars, visibleCount]);
+
+  // Seamless Scroll Position Restoration
+  useEffect(() => {
+    if (loading) return;
+
+    try {
+      const targetCarId = sessionStorage.getItem(SCROLL_CAR_KEY);
+      const savedScrollY = sessionStorage.getItem(SCROLL_POS_KEY);
+
+      if (targetCarId) {
+        // Clear immediately so subsequent manual visits don't force scroll
+        sessionStorage.removeItem(SCROLL_CAR_KEY);
+        sessionStorage.removeItem(SCROLL_POS_KEY);
+
+        // Ensure visibleCount covers targetCarId if it was beyond initial batch
+        const targetIndex = filteredCars.findIndex(c => c.id === targetCarId);
+        if (targetIndex !== -1 && targetIndex >= visibleCount) {
+          setVisibleCount(Math.min(filteredCars.length, Math.ceil((targetIndex + 4) / 8) * 8));
+        }
+
+        // Attempt scrolling directly into the exact car element or saved coordinates
+        const timer = setTimeout(() => {
+          const element = document.getElementById(`car-card-${targetCarId}`);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          } else if (savedScrollY) {
+            window.scrollTo({
+              top: parseInt(savedScrollY, 10),
+              behavior: 'smooth'
+            });
+          }
+        }, 120);
+
+        return () => clearTimeout(timer);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [loading, filteredCars]);
+
+  const handleCarClick = (carId: string) => {
+    try {
+      sessionStorage.setItem(SCROLL_POS_KEY, window.scrollY.toString());
+      sessionStorage.setItem(SCROLL_CAR_KEY, carId);
+      sessionStorage.setItem(VISIBLE_COUNT_KEY, Math.max(visibleCount, INITIAL_BATCH_SIZE).toString());
+    } catch (e) {
+      // ignore
+    }
+  };
 
   const toggleBodyType = (bodyType: string) => {
     setSelectedBodyTypes(prev => prev.includes(bodyType) ? prev.filter(b => b !== bodyType) : [...prev, bodyType]);
@@ -564,8 +594,8 @@ export default function Inventory() {
                     <div className="h-9 sm:h-10 w-full bg-white/10 rounded-full mt-4 sm:mt-6"></div>
                   </div>
                 ))
-              ) : filteredCars.length > 0 ? (
-                filteredCars.map((car) => {
+              ) : displayedCars.length > 0 ? (
+                displayedCars.map((car) => {
                   return (
                     <Link 
                       key={car.id} 
@@ -638,13 +668,22 @@ export default function Inventory() {
               )}
             </div>
             
-            {filteredCars.length > 0 && (
-              <div className="mt-16 flex justify-center border-t border-white/10 pt-12">
-                 <div className="flex items-center space-x-4">
-                     <button className="px-5 py-2.5 frost-pill rounded-full text-zinc-300 text-xs tracking-wider uppercase hover:border-white hover:text-white disabled:opacity-35 transition-colors font-bold font-sans" disabled>Previous</button>
-                     <span className="text-white text-xs tracking-widest font-sans font-bold">1 / 1</span>
-                     <button className="px-5 py-2.5 frost-pill rounded-full text-zinc-300 text-xs tracking-wider uppercase hover:border-white hover:text-white disabled:opacity-35 transition-colors font-bold font-sans" disabled>Next</button>
-                 </div>
+            {filteredCars.length > visibleCount && (
+              <div className="mt-12 flex flex-col items-center justify-center border-t border-white/10 pt-10">
+                <button
+                  type="button"
+                  onClick={() => setVisibleCount(prev => Math.min(filteredCars.length, prev + 16))}
+                  className="px-8 py-3.5 frost-pill rounded-full text-white text-xs tracking-widest uppercase hover:bg-white hover:text-black transition-all duration-300 font-bold font-sans shadow-lg flex items-center gap-2 cursor-pointer"
+                >
+                  Load More Motorcars
+                  <span className="text-[10px] text-zinc-400 font-normal">({displayedCars.length} of {filteredCars.length})</span>
+                </button>
+              </div>
+            )}
+
+            {filteredCars.length > 0 && visibleCount >= filteredCars.length && (
+              <div className="mt-12 text-center text-zinc-400 font-sans text-xs tracking-widest uppercase border-t border-white/10 pt-8">
+                Showing all {filteredCars.length} Certified Motorcars
               </div>
             )}
             
