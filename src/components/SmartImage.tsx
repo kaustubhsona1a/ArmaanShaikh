@@ -123,7 +123,6 @@ export const SmartImage: React.FC<SmartImageProps> = ({
       loading={loading}
       decoding={decoding}
       referrerPolicy="no-referrer"
-      crossOrigin="anonymous"
       className={className}
       onError={handleError}
       {...props}
