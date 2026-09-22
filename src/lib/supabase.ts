@@ -4,6 +4,19 @@ import imageCompression from 'browser-image-compression';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON || 'placeholder';
 
+export const isSupabaseConfigured = (): boolean => {
+  const url = import.meta.env.VITE_SUPABASE_URL;
+  const key = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON;
+  return Boolean(
+    url &&
+    url !== 'YOUR_SUPABASE_URL' &&
+    !url.includes('placeholder.supabase.co') &&
+    key &&
+    key !== 'YOUR_SUPABASE_ANON_KEY' &&
+    key !== 'placeholder'
+  );
+};
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export enum OperationType {
@@ -444,42 +457,58 @@ export async function uploadMultipleImagesToStorage(
 
 /**
  * Optimizes a remote image hosted on Supabase storage by fetching, downscaling to HD 1200px,
- * compressing to lightweight WebP, re-uploading and deleting the bloated predecessor.
+ * compressing to lightweight WebP, re-uploading and retaining or cleaning the original.
  */
 export async function optimizeRemoteStorageImage(
   imageUrl: string,
-  bucket: string = 'vehicle-images'
-): Promise<{ url: string; bytesSaved: number; wasOptimized: boolean }> {
+  bucket: string = 'vehicle-images',
+  options?: {
+    keepOriginalBackup?: boolean;
+    maxDimension?: number;
+    targetQuality?: number;
+  }
+): Promise<{ 
+  url: string; 
+  originalUrl: string; 
+  bytesSaved: number; 
+  originalSize?: number; 
+  compressedSize?: number; 
+  wasOptimized: boolean 
+}> {
   if (!imageUrl || typeof imageUrl !== 'string' || imageUrl.startsWith('data:') || imageUrl.startsWith('/')) {
-    return { url: imageUrl, bytesSaved: 0, wasOptimized: false };
+    return { url: imageUrl, originalUrl: imageUrl, bytesSaved: 0, wasOptimized: false };
   }
 
   // Only optimize Supabase Storage URLs
   if (!imageUrl.includes('supabase.co/storage/')) {
-    return { url: imageUrl, bytesSaved: 0, wasOptimized: false };
+    return { url: imageUrl, originalUrl: imageUrl, bytesSaved: 0, wasOptimized: false };
   }
+
+  const keepOriginal = options?.keepOriginalBackup ?? true;
+  const maxDim = options?.maxDimension || 1200;
+  const quality = options?.targetQuality || 0.70;
 
   try {
     const res = await fetch(imageUrl, { cache: 'no-cache' });
-    if (!res.ok) return { url: imageUrl, bytesSaved: 0, wasOptimized: false };
+    if (!res.ok) return { url: imageUrl, originalUrl: imageUrl, bytesSaved: 0, wasOptimized: false };
 
     const initialBlob = await res.blob();
     const initialSize = initialBlob.size;
 
     // If image is already lightweight WebP under 180KB, skip re-compression
     if (initialSize < 180 * 1024 && (initialBlob.type === 'image/webp' || imageUrl.endsWith('.webp'))) {
-      return { url: imageUrl, bytesSaved: 0, wasOptimized: false };
+      return { url: imageUrl, originalUrl: imageUrl, bytesSaved: 0, wasOptimized: false };
     }
 
     const pseudoFile = new File([initialBlob], 'recompressed_photo.jpg', {
       type: initialBlob.type || 'image/jpeg'
     });
 
-    const compressed = await compressImage(pseudoFile, { maxDimension: 1200, targetQuality: 0.70 });
+    const compressed = await compressImage(pseudoFile, { maxDimension: maxDim, targetQuality: quality });
     
     // Only upload if compression actually reduced the file size
     if (compressed.size >= initialSize) {
-      return { url: imageUrl, bytesSaved: 0, wasOptimized: false };
+      return { url: imageUrl, originalUrl: imageUrl, bytesSaved: 0, wasOptimized: false };
     }
 
     const uniqueId = `opt_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
@@ -496,33 +525,133 @@ export async function optimizeRemoteStorageImage(
 
     if (uploadError) {
       console.warn('[REMOTE OPT UPLOAD ERROR]', uploadError);
-      return { url: imageUrl, bytesSaved: 0, wasOptimized: false };
+      return { url: imageUrl, originalUrl: imageUrl, bytesSaved: 0, wasOptimized: false };
     }
 
     const { data: publicUrlData } = supabase.storage.from(bucket).getPublicUrl(newPath);
     if (!publicUrlData?.publicUrl) {
-      return { url: imageUrl, bytesSaved: 0, wasOptimized: false };
+      return { url: imageUrl, originalUrl: imageUrl, bytesSaved: 0, wasOptimized: false };
     }
 
-    // Delete old oversized file to reclaim storage space
-    try {
-      await deleteImagesFromStorage([imageUrl], bucket);
-    } catch {}
+    // If backup is NOT requested, delete old oversized file to reclaim storage space.
+    // If backup IS requested (default safe mode), we keep the original file in storage so it can be reverted anytime!
+    if (!keepOriginal) {
+      try {
+        await deleteImagesFromStorage([imageUrl], bucket);
+      } catch {}
+    }
 
     const bytesSaved = initialSize - compressed.size;
     return {
       url: publicUrlData.publicUrl,
+      originalUrl: imageUrl,
       bytesSaved,
+      originalSize: initialSize,
+      compressedSize: compressed.size,
       wasOptimized: true
     };
   } catch (err) {
     console.warn('[OPTIMIZE REMOTE IMAGE ERROR]', err);
-    return { url: imageUrl, bytesSaved: 0, wasOptimized: false };
+    return { url: imageUrl, originalUrl: imageUrl, bytesSaved: 0, originalSize: 0, compressedSize: 0, wasOptimized: false };
   }
 }
 
+export interface OptimizationBackupLog {
+  timestamp: string;
+  itemsOptimized: number;
+  totalBytesSaved: number;
+  records: Array<{
+    vehicleId: string;
+    vehicleImageId: string;
+    originalUrl: string;
+    optimizedUrl: string;
+  }>;
+}
+
+const OPTIMIZATION_BACKUP_STORAGE_KEY = 'jackpot_fleet_optimization_backup';
+
+export function getFleetOptimizationBackup(): OptimizationBackupLog | null {
+  try {
+    const raw = localStorage.getItem(OPTIMIZATION_BACKUP_STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+export function clearFleetOptimizationBackup(): void {
+  try {
+    localStorage.removeItem(OPTIMIZATION_BACKUP_STORAGE_KEY);
+  } catch {}
+}
+
 /**
- * Runs a complete fleet-wide image audit & compression on Supabase.
+ * Reverts all optimized images back to their original uncompressed URLs in Supabase.
+ */
+export async function revertFleetOptimization(
+  onProgress?: (reverted: number, total: number) => void
+): Promise<{ success: boolean; revertedCount: number; error?: string }> {
+  const backup = getFleetOptimizationBackup();
+  if (!backup || !backup.records || backup.records.length === 0) {
+    return { success: false, revertedCount: 0, error: 'No previous optimization backup found to revert.' };
+  }
+
+  let revertedCount = 0;
+  const total = backup.records.length;
+  const affectedVehicleIds = new Set<string>();
+
+  for (let i = 0; i < total; i++) {
+    const rec = backup.records[i];
+    if (onProgress) {
+      onProgress(i + 1, total);
+    }
+
+    try {
+      if (rec.vehicleImageId && rec.originalUrl) {
+        // Restore original URL in vehicle_images table
+        const { error } = await supabase
+          .from('vehicle_images')
+          .update({ image_url: rec.originalUrl })
+          .eq('id', rec.vehicleImageId);
+
+        if (!error) {
+          revertedCount++;
+          if (rec.vehicleId) {
+            affectedVehicleIds.add(rec.vehicleId);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[REVERT IMAGE ERROR]', err);
+    }
+  }
+
+  // Update vehicle timestamps so clients re-fetch
+  for (const vId of affectedVehicleIds) {
+    try {
+      await supabase
+        .from('vehicles')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', vId);
+    } catch {}
+  }
+
+  // Bump version to bust caches
+  try {
+    await supabase
+      .from('metadata_versions')
+      .upsert({ key: 'vehicles', version: Date.now(), updated_at: new Date().toISOString() });
+  } catch {}
+
+  // Remove backup now that it has been restored
+  clearFleetOptimizationBackup();
+
+  return { success: true, revertedCount };
+}
+
+/**
+ * Runs a complete fleet-wide image audit & compression on Supabase with automatic backup creation.
  * Shrinks 5MB-10MB legacy car photos down to ~100KB WebP files, cutting egress by 90-95%.
  */
 export async function batchOptimizeAllVehicles(
@@ -532,10 +661,17 @@ export async function batchOptimizeAllVehicles(
     imagesProcessed: number;
     bytesSaved: number;
     currentCarName: string;
-  }) => void
-): Promise<{ vehiclesProcessed: number; imagesOptimized: number; totalBytesSaved: number }> {
+  }) => void,
+  options?: {
+    keepOriginalBackup?: boolean;
+    maxDimension?: number;
+    targetQuality?: number;
+  }
+): Promise<{ vehiclesProcessed: number; imagesOptimized: number; totalBytesSaved: number; backupCreated: boolean }> {
   let imagesOptimized = 0;
   let totalBytesSaved = 0;
+  const backupRecords: OptimizationBackupLog['records'] = [];
+  const keepOriginal = options?.keepOriginalBackup ?? true;
 
   // 1. Fetch all active vehicles with their vehicle_images relations from database
   const { data: vehiclesData, error } = await supabase
@@ -544,7 +680,7 @@ export async function batchOptimizeAllVehicles(
     .eq('is_deleted', false);
 
   if (error || !vehiclesData || vehiclesData.length === 0) {
-    return { vehiclesProcessed: 0, imagesOptimized: 0, totalBytesSaved: 0 };
+    return { vehiclesProcessed: 0, imagesOptimized: 0, totalBytesSaved: 0, backupCreated: false };
   }
 
   const totalVehicles = vehiclesData.length;
@@ -571,11 +707,22 @@ export async function batchOptimizeAllVehicles(
     for (const imgRecord of rawImages) {
       const imgUrl = (imgRecord.image_url || '').trim();
       if (imgUrl && imgUrl.includes('supabase.co/storage/')) {
-        const result = await optimizeRemoteStorageImage(imgUrl, 'vehicle-images');
+        const result = await optimizeRemoteStorageImage(imgUrl, 'vehicle-images', {
+          keepOriginalBackup: keepOriginal,
+          maxDimension: options?.maxDimension || 1200,
+          targetQuality: options?.targetQuality || 0.70
+        });
         if (result.wasOptimized && result.url !== imgUrl) {
           imagesOptimized++;
           totalBytesSaved += result.bytesSaved;
           vehicleModified = true;
+
+          backupRecords.push({
+            vehicleId: String(v.id),
+            vehicleImageId: String(imgRecord.id),
+            originalUrl: imgUrl,
+            optimizedUrl: result.url
+          });
 
           // Update this specific vehicle_images row with the optimized WebP URL
           await supabase
@@ -595,6 +742,23 @@ export async function batchOptimizeAllVehicles(
     }
   }
 
+  // Save backup to localStorage so admin can revert at any time with 1 click
+  let backupCreated = false;
+  if (backupRecords.length > 0) {
+    try {
+      const backupPayload: OptimizationBackupLog = {
+        timestamp: new Date().toISOString(),
+        itemsOptimized: imagesOptimized,
+        totalBytesSaved,
+        records: backupRecords
+      };
+      localStorage.setItem(OPTIMIZATION_BACKUP_STORAGE_KEY, JSON.stringify(backupPayload));
+      backupCreated = true;
+    } catch (saveErr) {
+      console.warn('[BACKUP SAVE ERROR]', saveErr);
+    }
+  }
+
   // Update metadata version so all connected clients reload the lightweight images
   try {
     await supabase
@@ -605,7 +769,129 @@ export async function batchOptimizeAllVehicles(
   return {
     vehiclesProcessed: totalVehicles,
     imagesOptimized,
-    totalBytesSaved
+    totalBytesSaved,
+    backupCreated
+  };
+}
+
+export interface SingleVehicleOptimizeResult {
+  success: boolean;
+  vehicleId: string;
+  totalImages: number;
+  imagesOptimized: number;
+  totalBytesSaved: number;
+  beforeBytes: number;
+  afterBytes: number;
+  newImages: string[];
+  details: Array<{
+    originalUrl: string;
+    optimizedUrl: string;
+    bytesSaved: number;
+    wasOptimized: boolean;
+  }>;
+}
+
+/**
+ * Optimizes photos for an individual vehicle on-demand from dealer portal.
+ * Allows dealer to test quality and measure exact byte sizes before/after for a single car.
+ */
+export async function optimizeVehicleImages(
+  vehicleId: string,
+  imageUrls: string[],
+  options?: {
+    keepOriginalBackup?: boolean;
+    maxDimension?: number;
+    targetQuality?: number;
+  }
+): Promise<SingleVehicleOptimizeResult> {
+  const keepOriginal = options?.keepOriginalBackup ?? false; // default false to save storage and avoid blowing it up
+  const maxDim = options?.maxDimension || 1200;
+  const quality = options?.targetQuality || 0.70;
+
+  const resultDetails: SingleVehicleOptimizeResult['details'] = [];
+  const updatedImages: string[] = [];
+  let totalBytesSaved = 0;
+  let imagesOptimized = 0;
+  let beforeBytes = 0;
+  let afterBytes = 0;
+
+  for (let i = 0; i < imageUrls.length; i++) {
+    const originalUrl = imageUrls[i];
+    
+    // Check original size if possible
+    let originalSize = 0;
+    try {
+      const headRes = await fetch(originalUrl, { method: 'HEAD', cache: 'no-cache' });
+      const cl = headRes.headers.get('content-length');
+      if (cl) originalSize = parseInt(cl, 10);
+    } catch {}
+
+    const optRes = await optimizeRemoteStorageImage(originalUrl, 'vehicle-images', {
+      keepOriginalBackup: keepOriginal,
+      maxDimension: maxDim,
+      targetQuality: quality
+    });
+
+    const fileOrigSize = optRes.originalSize || originalSize || 150000;
+    const fileFinalSize = optRes.compressedSize || (fileOrigSize - optRes.bytesSaved) || 80000;
+
+    if (optRes.wasOptimized && optRes.url !== originalUrl) {
+      imagesOptimized++;
+      totalBytesSaved += optRes.bytesSaved;
+      updatedImages.push(optRes.url);
+
+      beforeBytes += fileOrigSize;
+      afterBytes += fileFinalSize;
+
+      resultDetails.push({
+        originalUrl,
+        optimizedUrl: optRes.url,
+        bytesSaved: optRes.bytesSaved,
+        wasOptimized: true
+      });
+    } else {
+      updatedImages.push(originalUrl);
+      beforeBytes += fileOrigSize;
+      afterBytes += fileOrigSize;
+
+      resultDetails.push({
+        originalUrl,
+        optimizedUrl: originalUrl,
+        bytesSaved: 0,
+        wasOptimized: false
+      });
+    }
+  }
+
+  // If any images were updated, persist to vehicle_images table and bump timestamp
+  if (imagesOptimized > 0 && isSupabaseConfigured()) {
+    try {
+      const { syncVehicleImages } = await import('../context/VehicleContext');
+      await syncVehicleImages(vehicleId, updatedImages);
+
+      await supabase
+        .from('vehicles')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', vehicleId);
+
+      await supabase
+        .from('metadata_versions')
+        .upsert({ key: 'vehicles', version: Date.now(), updated_at: new Date().toISOString() });
+    } catch (dbErr) {
+      console.warn('[SINGLE VEHICLE OPT DB SYNC ERROR]', dbErr);
+    }
+  }
+
+  return {
+    success: true,
+    vehicleId,
+    totalImages: imageUrls.length,
+    imagesOptimized,
+    totalBytesSaved,
+    beforeBytes,
+    afterBytes,
+    newImages: updatedImages,
+    details: resultDetails
   };
 }
 

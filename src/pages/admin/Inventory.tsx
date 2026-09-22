@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { formatPrice, Vehicle, BODY_TYPES } from '../../data/mockData';
-import { Search, Plus, Edit, Trash2, AlertTriangle } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, AlertTriangle, Zap, RotateCcw } from 'lucide-react';
 import { useVehicles } from '../../context/VehicleContext';
 import { SmartImage } from '../../components/SmartImage';
+import { CompressCarModal } from '../../components/admin/CompressCarModal';
+import { CompressFleetModal } from '../../components/admin/CompressFleetModal';
+import { getFleetOptimizationBackup, OptimizationBackupLog } from '../../lib/supabase';
 
 export default function AdminInventory() {
   const { vehicles, updateVehicle, removeVehicle } = useVehicles();
@@ -12,6 +15,13 @@ export default function AdminInventory() {
   const [statusFilter, setStatusFilter] = useState('All Statuses');
   const [bodyTypeFilter, setBodyTypeFilter] = useState('All Body Types');
   const [carToDelete, setCarToDelete] = useState<Vehicle | null>(null);
+  const [carToCompress, setCarToCompress] = useState<Vehicle | null>(null);
+  const [showCompressFleetModal, setShowCompressFleetModal] = useState(false);
+  const [backupInfo, setBackupInfo] = useState<OptimizationBackupLog | null>(null);
+
+  useEffect(() => {
+    setBackupInfo(getFleetOptimizationBackup());
+  }, []);
   
   const filteredVehicles = vehicles.filter(v => {
     const matchesSearch = (v.make + ' ' + v.model + ' ' + (v.bodyType || '') + ' ' + (v.registration || '')).toLowerCase().includes(searchTerm.toLowerCase());
@@ -34,9 +44,33 @@ export default function AdminInventory() {
           <h1 className="text-3xl font-serif font-bold text-white tracking-widest uppercase">Inventory Management</h1>
           <p className="text-zinc-400 text-xs mt-2 font-mono uppercase tracking-wider">Manage all vehicles in your premium dealership.</p>
         </div>
-        <Link to="/dealer-management/inventory/add" className="inline-flex items-center px-6 py-3.5 bg-white hover:bg-zinc-900 text-zinc-950 hover:text-white border border-transparent hover:border-white/20 rounded-xl text-xs font-bold tracking-widest font-mono uppercase transition-all shadow-sm">
-          <Plus className="w-4 h-4 mr-2" /> Add Vehicle
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          {backupInfo && backupInfo.records && backupInfo.records.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowCompressFleetModal(true)}
+              className="inline-flex items-center px-4 py-3.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:border-rose-500/50 rounded-xl text-xs font-bold tracking-widest font-mono uppercase transition-all shadow-sm"
+              title="A backup exists: restore original uncompressed photos"
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              <span>Undo / Revert All ({backupInfo.records.length})</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setShowCompressFleetModal(true)}
+            className="inline-flex items-center px-4 py-3.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:border-amber-500/50 rounded-xl text-xs font-bold tracking-widest font-mono uppercase transition-all shadow-sm"
+            title="Scan and compress all vehicle photos with 1-click undo option"
+          >
+            <Zap className="w-4 h-4 mr-2" />
+            <span>Compress All</span>
+          </button>
+
+          <Link to="/dealer-management/inventory/add" className="inline-flex items-center px-6 py-3.5 bg-white hover:bg-zinc-900 text-zinc-950 hover:text-white border border-transparent hover:border-white/20 rounded-xl text-xs font-bold tracking-widest font-mono uppercase transition-all shadow-sm">
+            <Plus className="w-4 h-4 mr-2" /> Add Vehicle
+          </Link>
+        </div>
       </div>
 
       <div className="bg-zinc-950/65 backdrop-blur-md rounded-2xl border border-white/5 shadow-lg overflow-hidden">
@@ -122,6 +156,14 @@ export default function AdminInventory() {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end space-x-2">
+                      <button
+                        type="button"
+                        onClick={() => setCarToCompress(car)}
+                        className="p-2 text-amber-400/90 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 hover:border-amber-500/50 rounded-xl transition-all"
+                        title="Compress Images for this Vehicle"
+                      >
+                        <Zap className="w-4 h-4" />
+                      </button>
                       <Link to={`/dealer-management/inventory/edit/${car.id}`} className="p-2 text-zinc-400 hover:text-white bg-zinc-900/30 hover:bg-white/5 border border-white/5 hover:border-white/30 rounded-xl transition-all">
                         <Edit className="w-4 h-4" />
                       </Link>
@@ -176,6 +218,14 @@ export default function AdminInventory() {
                   </select>
                 </div>
                 <div className="flex items-center space-x-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setCarToCompress(car)}
+                    className="p-2 text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 hover:border-amber-500/50 rounded-xl transition-all"
+                    title="Compress Images"
+                  >
+                    <Zap className="w-4.5 h-4.5" />
+                  </button>
                   <Link to={`/dealer-management/inventory/edit/${car.id}`} className="p-2 text-zinc-300 hover:text-white bg-zinc-900/40 hover:bg-white/5 border border-white/5 hover:border-white/25 rounded-xl transition-all" title="Edit Car">
                     <Edit className="w-4.5 h-4.5" />
                   </Link>
@@ -192,6 +242,27 @@ export default function AdminInventory() {
           <div className="p-12 text-center text-zinc-500 font-mono text-xs uppercase tracking-wider">No luxury vehicles found matching criteria.</div>
         )}
       </div>
+
+      {/* Compress Single Car Modal */}
+      {carToCompress && (
+        <CompressCarModal
+          vehicle={carToCompress}
+          onClose={() => setCarToCompress(null)}
+          onSuccess={(newImages) => {
+            setCarToCompress(prev => prev ? { ...prev, images: newImages } : null);
+          }}
+        />
+      )}
+
+      {/* Compress All / Fleet Modal */}
+      {showCompressFleetModal && (
+        <CompressFleetModal
+          onClose={() => setShowCompressFleetModal(false)}
+          onCompleted={() => {
+            setBackupInfo(getFleetOptimizationBackup());
+          }}
+        />
+      )}
 
       {/* Delete Confirmation Modal */}
       {carToDelete && createPortal(

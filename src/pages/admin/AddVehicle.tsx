@@ -1,9 +1,10 @@
 import React, { useState, ChangeEvent, FormEvent, useEffect, useRef } from 'react';
-import { UploadCloud, X, Plus, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { UploadCloud, X, Plus, AlertCircle, CheckCircle2, Loader2, Zap } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useVehicles } from '../../context/VehicleContext';
 import { Vehicle, BODY_TYPES } from '../../data/mockData';
 import { uploadMultipleImagesToStorage, deleteImagesFromStorage } from '../../lib/supabase';
+import { CompressCarModal } from '../../components/admin/CompressCarModal';
 
 export default function AdminAddVehicle() {
   const { vehicles, addVehicle, updateVehicle } = useVehicles();
@@ -52,6 +53,7 @@ export default function AdminAddVehicle() {
 
   const [images, setImages] = useState<string[]>([]);
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
+  const [showCompressModal, setShowCompressModal] = useState(false);
 
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>, index: number) => {
     setDraggedIdx(index);
@@ -346,16 +348,29 @@ export default function AdminAddVehicle() {
 
         {/* Media */}
         <div>
-          <div className="flex justify-between items-center mb-6 border-b border-white/5 pb-2">
+          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 mb-6 border-b border-white/5 pb-3">
             <h2 className="text-sm font-bold font-serif text-white uppercase tracking-widest">
               Vehicle Gallery {images.length > 0 && `(${images.length} Photos)`}
             </h2>
-            {isCompressing && uploadProgress && (
-              <div className="flex items-center gap-2 text-xs font-mono text-zinc-300 bg-white/5 px-3 py-1.5 rounded-lg border border-white/10">
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
-                <span>Processing {uploadProgress.current} of {uploadProgress.total}...</span>
-              </div>
-            )}
+            <div className="flex items-center gap-3">
+              {isEditing && id && images.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowCompressModal(true)}
+                  className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:border-amber-500/50 rounded-lg text-xs font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all"
+                  title="Compress and optimize images for this specific vehicle"
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  <span>Compress Photos</span>
+                </button>
+              )}
+              {isCompressing && uploadProgress && (
+                <div className="flex items-center gap-2 text-xs font-mono text-zinc-300 bg-white/5 px-3 py-1.5 rounded-lg border border-white/10">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                  <span>Processing {uploadProgress.current} of {uploadProgress.total}...</span>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Upload Status Banner */}
@@ -449,6 +464,36 @@ export default function AdminAddVehicle() {
         </div>
 
       </div>
+
+      {showCompressModal && isEditing && id && (
+        <CompressCarModal
+          vehicle={{
+            id,
+            make: formData.make,
+            model: formData.model,
+            variant: formData.variant,
+            year: Number(formData.year) || new Date().getFullYear(),
+            price: Number(formData.price) || 0,
+            images,
+            mileage: Number(formData.mileage) || 0,
+            fuelType: formData.fuelType as any,
+            transmission: formData.transmission as any,
+            ownership: formData.ownership,
+            bodyType: formData.bodyType,
+            engine: formData.engine,
+            color: formData.color,
+            registration: formData.registration,
+            features: [],
+            status: 'Available',
+            description: formData.description,
+            instagramReel: formData.instagramReel
+          }}
+          onClose={() => setShowCompressModal(false)}
+          onSuccess={(updatedImages) => {
+            setImages(updatedImages);
+          }}
+        />
+      )}
     </form>
   );
 }
