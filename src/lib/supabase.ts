@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import imageCompression from 'browser-image-compression';
+import { uploadToR2, deleteFromR2 } from './r2';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON || 'placeholder';
@@ -96,11 +97,17 @@ export async function deleteImagesFromStorage(items: any[], bucket: string = 've
   console.log(`[STORAGE PURGE] Attempting to delete ${paths.length} items from bucket "${bucket}":`, paths);
 
   if (paths.length > 0) {
+    // Delete from Supabase Storage
     const { data, error } = await supabase.storage.from(bucket).remove(paths);
     if (error) {
       console.error(`[STORAGE PURGE ERROR] Failed to delete images from bucket "${bucket}":`, error);
     } else {
       console.log(`[STORAGE PURGE SUCCESS] Deleted from bucket "${bucket}":`, data);
+    }
+
+    // Also delete from Cloudflare R2 bucket
+    for (const p of paths) {
+      deleteFromR2(p).catch(err => console.debug('[R2 PURGE SKIP]', err));
     }
   }
 }
@@ -352,7 +359,29 @@ export async function uploadImageToStorage(
   const fileName = `${uniqueId}.${fileExt}`;
   const filePath = `${path}/${fileName}`;
 
-  // Step 2: Attempt uploading to Supabase Storage
+  // Step 2: Primary Upload Directly to Cloudflare R2
+  try {
+    const r2Url = await uploadToR2(optimizedFile, filePath, optimizedFile.type);
+    if (r2Url) {
+      console.log('[R2 UPLOAD SUCCESS] Image uploaded directly to Cloudflare R2:', r2Url);
+      
+      // Secondary silent backup to Supabase Storage (never blocks or fails the upload)
+      supabase.storage
+        .from(bucket)
+        .upload(filePath, optimizedFile, {
+          cacheControl: '31536000',
+          upsert: true,
+          contentType: optimizedFile.type || (isWebp ? 'image/webp' : 'image/jpeg')
+        })
+        .catch(bErr => console.debug('[SUPABASE MIRROR SKIP]', bErr));
+
+      return r2Url;
+    }
+  } catch (r2Err) {
+    console.warn('[R2 UPLOAD FALLBACK TO SUPABASE] Direct R2 upload encountered error, falling back to Supabase:', r2Err);
+  }
+
+  // Step 3: Fallback upload to Supabase Storage if R2 is unavailable
   let attempt = 0;
   let lastError: any = null;
 
