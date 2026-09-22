@@ -113,6 +113,14 @@ export function resolveImageUrl(url: string | undefined): string {
     cleaned = '/logo.png';
   }
 
+  // 3. Transparently rewrite any Supabase storage URLs to Cloudflare R2 edge CDN
+  if (cleaned.includes('/storage/v1/object/public/vehicle-images/')) {
+    cleaned = cleaned.replace(
+      /https:\/\/[^/]+\.supabase\.co\/storage\/v1\/object\/public\/vehicle-images\//g,
+      'https://pub-f4e7a3fade6e4cc59414305e0c001271.r2.dev/'
+    );
+  }
+
   // 3. Resolve local paths with Vite base URL if running on a subpath (e.g. GitHub Pages)
   if (cleaned.startsWith('/')) {
     const base = import.meta.env.BASE_URL || '/';
