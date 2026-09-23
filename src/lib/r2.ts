@@ -1,42 +1,148 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { supabase } from './supabase';
 
-const R2_ACCOUNT_ID = '6ef17a804311f710ae26039ae53a05d0';
-const R2_BUCKET = 'car-images';
-const R2_PUBLIC_URL = 'https://pub-f4e7a3fade6e4cc59414305e0c001271.r2.dev';
+const R2_ACCOUNT_ID = import.meta.env.VITE_R2_ACCOUNT_ID || '6ef17a804311f710ae26039ae53a05d0';
+const R2_BUCKET = import.meta.env.VITE_R2_BUCKET || 'car-images';
+const R2_PUBLIC_URL = import.meta.env.VITE_R2_PUBLIC_URL || 'https://pub-f4e7a3fade6e4cc59414305e0c001271.r2.dev';
 
-export const r2Client = new S3Client({
-  region: 'auto',
-  endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: '683026edb67ca029c3a214d844f7bfe4',
-    secretAccessKey: 'b67c25db0812fd6e7b3ec19cf8ef97d40256b04ad884fbd06a44b2b40dd0a278'
+const accessKeyId = import.meta.env.VITE_R2_ACCESS_KEY_ID || '';
+const secretAccessKey = import.meta.env.VITE_R2_SECRET_ACCESS_KEY || '';
+
+let clientInstance: S3Client | null = null;
+
+function getS3Client(): S3Client | null {
+  if (!accessKeyId || !secretAccessKey) {
+    return null;
   }
-});
+  if (!clientInstance) {
+    clientInstance = new S3Client({
+      region: 'auto',
+      endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+      credentials: {
+        accessKeyId,
+        secretAccessKey
+      }
+    });
+  }
+  return clientInstance;
+}
 
+/**
+ * Upload an image to Cloudflare R2
+ * Tries secure serverless endpoint (/api/upload) first with Supabase Auth token.
+ * Falls back to client S3 client if environment variables are provided locally.
+ */
 export async function uploadToR2(
   file: File | Blob,
   path: string,
   contentType?: string
 ): Promise<string> {
   const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-  const arrayBuffer = await file.arrayBuffer();
-  const uint8Array = new Uint8Array(arrayBuffer);
+  const mimeType = contentType || file.type || 'image/jpeg';
 
-  await r2Client.send(new PutObjectCommand({
-    Bucket: R2_BUCKET,
-    Key: cleanPath,
-    Body: uint8Array,
-    ContentType: contentType || file.type || 'image/jpeg',
-    CacheControl: 'public, max-age=31536000, immutable'
-  }));
+  // Strategy 1: Secure Serverless API Route with Supabase Admin JWT
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = '';
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const base64Data = btoa(binary);
 
-  return `${R2_PUBLIC_URL}/${cleanPath}`;
+    // Retrieve active session token if present
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token;
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        path: cleanPath,
+        contentType: mimeType,
+        base64Data
+      })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.url) {
+        return data.url;
+      }
+    } else {
+      const errJson = await res.json().catch(() => ({}));
+      console.warn('[R2 SERVERLESS UPLOAD RES ERROR]', res.status, errJson);
+    }
+  } catch (apiErr) {
+    console.debug('[R2 SERVERLESS UPLOAD SKIP]', apiErr);
+  }
+
+  // Strategy 2: Direct Client S3 (if client keys are present in .env)
+  const s3 = getS3Client();
+  if (s3) {
+    const arrayBuffer = await file.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+
+    await s3.send(new PutObjectCommand({
+      Bucket: R2_BUCKET,
+      Key: cleanPath,
+      Body: uint8Array,
+      ContentType: mimeType,
+      CacheControl: 'public, max-age=31536000, immutable'
+    }));
+
+    return `${R2_PUBLIC_URL}/${cleanPath}`;
+  }
+
+  throw new Error('R2 upload unavailable: Serverless endpoint or client keys required');
 }
 
+/**
+ * Delete an image from Cloudflare R2
+ * Authenticated via Supabase Admin JWT to /api/delete
+ */
 export async function deleteFromR2(path: string): Promise<boolean> {
+  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+
+  // Strategy 1: Secure Serverless API Route with Supabase Admin JWT
   try {
-    const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-    await r2Client.send(new DeleteObjectCommand({
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token;
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const res = await fetch('/api/delete', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ path: cleanPath })
+    });
+
+    if (res.ok) {
+      return true;
+    }
+  } catch (apiErr) {
+    console.debug('[R2 SERVERLESS DELETE SKIP]', apiErr);
+  }
+
+  // Strategy 2: Direct Client S3 fallback
+  try {
+    const s3 = getS3Client();
+    if (!s3) return false;
+
+    await s3.send(new DeleteObjectCommand({
       Bucket: R2_BUCKET,
       Key: cleanPath
     }));

@@ -119,6 +119,16 @@ export function resolveImageUrl(url: string | undefined): string {
       /https:\/\/[^/]+\.supabase\.co\/storage\/v1\/object\/public\/vehicle-images\//g,
       'https://pub-f4e7a3fade6e4cc59414305e0c001271.r2.dev/'
     );
+  } else if (cleaned.includes('/storage/v1/object/public/site_settings/')) {
+    cleaned = cleaned.replace(
+      /https:\/\/[^/]+\.supabase\.co\/storage\/v1\/object\/public\/site_settings\//g,
+      'https://pub-f4e7a3fade6e4cc59414305e0c001271.r2.dev/'
+    );
+  } else if (cleaned.includes('/storage/v1/object/public/')) {
+    cleaned = cleaned.replace(
+      /https:\/\/[^/]+\.supabase\.co\/storage\/v1\/object\/public\/[^/]+\//g,
+      'https://pub-f4e7a3fade6e4cc59414305e0c001271.r2.dev/'
+    );
   }
 
   // 3. Resolve local paths with Vite base URL if running on a subpath (e.g. GitHub Pages)

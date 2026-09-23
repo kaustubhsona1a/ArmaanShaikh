@@ -533,7 +533,9 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
                 homeHeroMobileVideo: fetchedHomeHeroMobileVideo,
                 homeHeroType: fetchedHomeHeroType,
                 logo: sanitizeLogo(siteData.logo || siteData.logo_url || DEFAULT_CONFIG.logo),
-                clientDeliveries: fetchedClientDeliveries || DEFAULT_CONFIG.clientDeliveries,
+                clientDeliveries: Array.isArray(fetchedClientDeliveries) 
+                  ? fetchedClientDeliveries.map(img => resolveImageUrl(img)) 
+                  : DEFAULT_CONFIG.clientDeliveries,
                 instagramReels: fetchedInstagramReels || DEFAULT_CONFIG.instagramReels || []
               };
               setSiteConfig(parsedConfig);
