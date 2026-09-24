@@ -113,21 +113,11 @@ export function resolveImageUrl(url: string | undefined): string {
     cleaned = '/logo.png';
   }
 
-  // 3. Transparently rewrite any Supabase storage URLs to Cloudflare R2 edge CDN
-  if (cleaned.includes('/storage/v1/object/public/vehicle-images/')) {
-    cleaned = cleaned.replace(
-      /https:\/\/[^/]+\.supabase\.co\/storage\/v1\/object\/public\/vehicle-images\//g,
-      'https://pub-f4e7a3fade6e4cc59414305e0c001271.r2.dev/'
-    );
-  } else if (cleaned.includes('/storage/v1/object/public/site_settings/')) {
+  // 3. Transparently rewrite site_settings assets that exist on Cloudflare R2 edge CDN
+  if (cleaned.includes('/storage/v1/object/public/site_settings/')) {
     cleaned = cleaned.replace(
       /https:\/\/[^/]+\.supabase\.co\/storage\/v1\/object\/public\/site_settings\//g,
-      'https://pub-f4e7a3fade6e4cc59414305e0c001271.r2.dev/'
-    );
-  } else if (cleaned.includes('/storage/v1/object/public/')) {
-    cleaned = cleaned.replace(
-      /https:\/\/[^/]+\.supabase\.co\/storage\/v1\/object\/public\/[^/]+\//g,
-      'https://pub-f4e7a3fade6e4cc59414305e0c001271.r2.dev/'
+      'https://pub-f4e7a3fade6e4cc59414305e0c001271.r2.dev/site_settings/'
     );
   }
 

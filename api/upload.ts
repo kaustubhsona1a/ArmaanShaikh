@@ -1,14 +1,14 @@
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { createClient } from '@supabase/supabase-js';
 
-const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID || '6ef17a804311f710ae26039ae53a05d0';
-const R2_BUCKET = process.env.R2_BUCKET || 'car-images';
-const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || 'https://pub-f4e7a3fade6e4cc59414305e0c001271.r2.dev';
-const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID || process.env.VITE_R2_ACCESS_KEY_ID;
-const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY || process.env.VITE_R2_SECRET_ACCESS_KEY;
+const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID || process.env.CLOUDFLARE_ACCOUNT_ID || process.env.VITE_R2_ACCOUNT_ID || '6ef17a804311f710ae26039ae53a05d0';
+const R2_BUCKET = process.env.R2_BUCKET || process.env.CLOUDFLARE_R2_BUCKET || process.env.VITE_R2_BUCKET || 'car-images';
+const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || process.env.CLOUDFLARE_R2_PUBLIC_URL || process.env.VITE_R2_PUBLIC_URL || 'https://pub-f4e7a3fade6e4cc59414305e0c001271.r2.dev';
+const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID || process.env.CLOUDFLARE_R2_ACCESS_KEY_ID || process.env.CLOUDFLARE_ACCESS_KEY_ID || process.env.R2_ACCESS_KEY || process.env.VITE_R2_ACCESS_KEY_ID;
+const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY || process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY || process.env.CLOUDFLARE_SECRET_ACCESS_KEY || process.env.R2_SECRET_KEY || process.env.VITE_R2_SECRET_ACCESS_KEY;
 
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || 'https://pgffljamplkthmwahmvn.supabase.co';
+const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // Rate limiting in-memory map for unauthenticated lead photo uploads (prevents storage DOS attacks)
 const ipUploadCounts = new Map<string, { count: number; resetTime: number }>();

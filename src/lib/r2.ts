@@ -27,6 +27,19 @@ function getS3Client(): S3Client | null {
   return clientInstance;
 }
 
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      const base64 = result.includes(',') ? result.split(',')[1] : result;
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
 /**
  * Upload an image to Cloudflare R2
  * Tries secure serverless endpoint (/api/upload) first with Supabase Auth token.
@@ -42,14 +55,7 @@ export async function uploadToR2(
 
   // Strategy 1: Secure Serverless API Route with Supabase Admin JWT
   try {
-    const arrayBuffer = await file.arrayBuffer();
-    const bytes = new Uint8Array(arrayBuffer);
-    let binary = '';
-    const len = bytes.byteLength;
-    for (let i = 0; i < len; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    const base64Data = btoa(binary);
+    const base64Data = await blobToBase64(file);
 
     // Retrieve active session token if present
     const { data: sessionData } = await supabase.auth.getSession();

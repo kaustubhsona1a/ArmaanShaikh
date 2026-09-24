@@ -565,6 +565,21 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
               setVehicles(filtered);
               await saveToCache('vehicles', normalized);
               await saveToCache('vehicles_version', remoteVersion);
+
+              // Fully autonomous silent transfer: Migrate any remaining Supabase photos directly to Cloudflare R2
+              const hasSupabaseImages = data.some((car: any) => 
+                car.vehicle_images?.some((img: any) => img.image_url?.includes('supabase.co'))
+              );
+              if (hasSupabaseImages && typeof window !== 'undefined') {
+                fetch('/api/sync-r2', { method: 'POST' })
+                  .then(res => res.json())
+                  .then(resData => {
+                    if (resData?.migratedCount > 0) {
+                      console.log(`[AUTONOMOUS R2 SYNC] Successfully migrated ${resData.migratedCount} photo(s) to Cloudflare R2.`);
+                    }
+                  })
+                  .catch(() => {});
+              }
             } else if (!hasMountedCache) {
               setVehicles(MOCK_VEHICLES);
             }

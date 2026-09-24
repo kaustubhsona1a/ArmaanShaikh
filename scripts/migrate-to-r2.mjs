@@ -4,11 +4,11 @@ import { createClient } from "@supabase/supabase-js";
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || "https://pgffljamplkthmwahmvn.supabase.co";
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON;
 
-const R2_ACCOUNT_ID = "6ef17a804311f710ae26039ae53a05d0";
-const R2_ACCESS_KEY_ID = "683026edb67ca029c3a214d844f7bfe4";
-const R2_SECRET_ACCESS_KEY = "b67c25db0812fd6e7b3ec19cf8ef97d40256b04ad884fbd06a44b2b40dd0a278";
-const R2_BUCKET = "car-images";
-const R2_PUBLIC_URL = "https://pub-f4e7a3fade6e4cc59414305e0c001271.r2.dev";
+const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID || "6ef17a804311f710ae26039ae53a05d0";
+const R2_ACCESS_KEY_ID = process.argv[2] || process.env.R2_ACCESS_KEY_ID || process.env.CLOUDFLARE_R2_ACCESS_KEY_ID || "683026edb67ca029c3a214d844f7bfe4";
+const R2_SECRET_ACCESS_KEY = process.argv[3] || process.env.R2_SECRET_ACCESS_KEY || process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY || "b67c25db0812fd6e7b3ec19cf8ef97d40256b04ad884fbd06a44b2b40dd0a278";
+const R2_BUCKET = process.env.R2_BUCKET || "car-images";
+const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || "https://pub-f4e7a3fade6e4cc59414305e0c001271.r2.dev";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -193,8 +193,16 @@ async function main() {
       if (exists) {
         skipped++;
         completed++;
+        
+        // Ensure database points to R2
+        const r2Url = `${R2_PUBLIC_URL}/${key}`;
+        await supabase
+          .from("vehicle_images")
+          .update({ image_url: r2Url })
+          .ilike("image_url", `%${key}%`);
+
         if (completed % 50 === 0 || completed === allKeys.length) {
-          console.log(`[Progress: ${completed}/${allKeys.length} (${((completed/allKeys.length)*100).toFixed(1)}%)] (Worker ${workerId}) Skipped existing: ${key}`);
+          console.log(`[Progress: ${completed}/${allKeys.length} (${((completed/allKeys.length)*100).toFixed(1)}%)] (Worker ${workerId}) Confirmed existing in R2 & Synced DB: ${key}`);
         }
         continue;
       }
@@ -204,6 +212,14 @@ async function main() {
 
       if (result.success) {
         totalBytes += result.bytes;
+        
+        // Update database row to point to R2
+        const r2Url = `${R2_PUBLIC_URL}/${key}`;
+        await supabase
+          .from("vehicle_images")
+          .update({ image_url: r2Url })
+          .ilike("image_url", `%${key}%`);
+
         if (completed % 25 === 0 || completed === allKeys.length) {
           const mb = (totalBytes / (1024 * 1024)).toFixed(1);
           console.log(`[Progress: ${completed}/${allKeys.length} (${((completed/allKeys.length)*100).toFixed(1)}%)] Transferred ~${mb} MB (Last: ${key})`);

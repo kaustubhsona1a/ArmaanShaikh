@@ -359,73 +359,36 @@ export async function uploadImageToStorage(
   const fileName = `${uniqueId}.${fileExt}`;
   const filePath = `${path}/${fileName}`;
 
-  // Step 2: Primary Upload Directly to Cloudflare R2
-  try {
-    const r2Url = await uploadToR2(optimizedFile, filePath, optimizedFile.type);
-    if (r2Url) {
-      console.log('[R2 UPLOAD SUCCESS] Image uploaded directly to Cloudflare R2:', r2Url);
-      
-      // Secondary silent backup to Supabase Storage (never blocks or fails the upload)
-      supabase.storage
-        .from(bucket)
-        .upload(filePath, optimizedFile, {
-          cacheControl: '31536000',
-          upsert: true,
-          contentType: optimizedFile.type || (isWebp ? 'image/webp' : 'image/jpeg')
-        })
-        .catch(bErr => console.debug('[SUPABASE MIRROR SKIP]', bErr));
-
-      return r2Url;
-    }
-  } catch (r2Err) {
-    console.warn('[R2 UPLOAD FALLBACK TO SUPABASE] Direct R2 upload encountered error, falling back to Supabase:', r2Err);
-  }
-
-  // Step 3: Fallback upload to Supabase Storage if R2 is unavailable
+  // Step 2: Direct Upload to Cloudflare R2 ONLY (No Supabase Storage)
   let attempt = 0;
   let lastError: any = null;
 
   while (attempt < maxRetries) {
     try {
-      const { error: uploadError } = await supabase.storage
-        .from(bucket)
-        .upload(filePath, optimizedFile, {
-          cacheControl: '31536000',
-          upsert: true,
-          contentType: optimizedFile.type || (isWebp ? 'image/webp' : 'image/jpeg')
-        });
-
-      if (uploadError) {
-        throw uploadError;
+      const r2Url = await uploadToR2(optimizedFile, filePath, optimizedFile.type);
+      if (r2Url) {
+        console.log('[R2 DIRECT UPLOAD SUCCESS] Image uploaded directly to Cloudflare R2:', r2Url);
+        return r2Url;
       }
-
-      const { data } = supabase.storage
-        .from(bucket)
-        .getPublicUrl(filePath);
-
-      if (data?.publicUrl) {
-        return data.publicUrl;
-      }
-    } catch (err: any) {
-      lastError = err;
+    } catch (r2Err: any) {
+      lastError = r2Err;
       attempt++;
       if (attempt < maxRetries) {
-        console.warn(`[UPLOAD RETRY] Retrying upload for ${file.name} (Attempt ${attempt + 1} of ${maxRetries})...`, err);
+        console.warn(`[R2 UPLOAD RETRY] Retrying Cloudflare R2 upload for ${file.name} (Attempt ${attempt + 1} of ${maxRetries})...`, r2Err);
         await new Promise(r => setTimeout(r, 400 * attempt));
       }
     }
   }
 
   // Step 3: FAIL-SAFE GUARANTEE
-  // If Supabase Storage is down/unreachable/quota exceeded, NEVER lose or drop the user's photo!
-  // Return the high-efficiency compressed Data URL so 100% of images are preserved and visible!
+  // If network issue prevents R2 upload, preserve photo with optimized inline data URL
   if (fallbackDataUrl) {
-    console.warn(`[UPLOAD FALLBACK] Supabase upload failed for ${file.name}, using optimized embedded data URL fail-safe.`);
+    console.warn(`[R2 FAILSAFE] Cloudflare R2 upload failed for ${file.name}, using optimized embedded data URL fail-safe.`);
     return fallbackDataUrl;
   }
 
-  console.error(`[UPLOAD FAILED] ${file.name} after ${maxRetries} retries:`, lastError);
-  throw lastError || new Error(`Failed to upload ${file.name}`);
+  console.error(`[R2 UPLOAD FAILED] ${file.name} after ${maxRetries} retries:`, lastError);
+  throw lastError || new Error(`Failed to upload ${file.name} to Cloudflare R2`);
 }
 
 /**
