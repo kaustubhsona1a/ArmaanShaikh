@@ -5,6 +5,8 @@ import { useVehicles } from '../../context/VehicleContext';
 import { Vehicle, BODY_TYPES } from '../../data/mockData';
 import { uploadMultipleImagesToStorage, deleteImagesFromStorage } from '../../lib/supabase';
 import { CompressCarModal } from '../../components/admin/CompressCarModal';
+import { processUploadFiles } from '../../lib/heic';
+import { SmartImage } from '../../components/SmartImage';
 
 export default function AdminAddVehicle() {
   const { vehicles, addVehicle, updateVehicle } = useVehicles();
@@ -108,12 +110,20 @@ export default function AdminAddVehicle() {
 
   const handleImageUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const files = Array.from(e.target.files) as File[];
+      const rawFiles = Array.from(e.target.files) as File[];
       setIsCompressing(true);
-      setUploadProgress({ current: 0, total: files.length });
-      setUploadNotice(null);
+      setUploadProgress({ current: 0, total: rawFiles.length });
+      setUploadNotice({
+        type: 'warning',
+        message: 'Optimizing and preparing photos for upload...'
+      });
 
       try {
+        // Pre-convert any Apple HEIC/HEIF files to universally compatible JPEG
+        const files = await processUploadFiles(rawFiles, (current, total) => {
+          setUploadProgress({ current, total });
+        });
+
         const { successful, failed } = await uploadMultipleImagesToStorage(
           files, 
           'vehicles', 
@@ -399,13 +409,12 @@ export default function AdminAddVehicle() {
                 onDragEnd={handleDragEnd}
                 className={`relative aspect-video rounded-xl overflow-hidden border ${draggedIdx === i ? 'border-white opacity-50' : 'border-white/5'} group cursor-move bg-black/40`}
               >
-                <img 
+                <SmartImage 
                   src={img} 
-                  alt={`Preview ${i}`} 
+                  alt={`Preview ${i + 1}`} 
                   className="w-full h-full object-cover pointer-events-none" 
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='500' viewBox='0 0 800 500' fill='none'><rect width='800' height='500' fill='%23121214'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%23ffffff' opacity='0.3' font-family='sans-serif' font-size='14'>PREVIEW ERROR</text></svg>";
-                  }}
+                  loading="lazy"
+                  decoding="async"
                 />
                 <div className="absolute top-2 left-2 bg-zinc-950/80 text-white text-[8px] font-bold px-1.5 py-0.5 rounded font-mono border border-white/10 shadow-sm pointer-events-none">
                   {i === 0 ? 'THUMBNAIL' : `#${i + 1}`}
@@ -433,7 +442,7 @@ export default function AdminAddVehicle() {
                   <span className="font-bold uppercase tracking-wider text-[10px]">Add Images</span>
                 </>
               )}
-              <input type="file" multiple accept="image/*" disabled={isCompressing} onChange={handleImageUpload} className="hidden" />
+              <input type="file" multiple accept="image/*,.heic,.heif,image/heic,image/heif" disabled={isCompressing} onChange={handleImageUpload} className="hidden" />
             </label>
           </div>
           <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider mt-2">You can select multiple images to upload. Images are automatically compressed & optimized. Drag and drop images to reorder them.</p>

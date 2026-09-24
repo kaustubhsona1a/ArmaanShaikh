@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import imageCompression from 'browser-image-compression';
 import { uploadToR2, deleteFromR2 } from './r2';
+import { isHeicBlob, convertHeicToJpeg } from './heic';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON || 'placeholder';
@@ -149,12 +150,18 @@ export async function compressImage(
   file: File,
   options?: { maxDimension?: number; targetQuality?: number; isShowcase?: boolean }
 ): Promise<File> {
+  // Step 0: Convert Apple HEIC/HEIF files to universally compatible JPEG before canvas decoding
+  let workingFile = file;
+  if (await isHeicBlob(file)) {
+    workingFile = await convertHeicToJpeg(file);
+  }
+
   // Skip compression for non-images or showcase branding assets if requested
   if (
     options?.isShowcase ||
-    (!file.type.startsWith('image/') && !file.name.match(/\.(heic|heif|jpe?g|png|webp|mov)$/i))
+    (!workingFile.type.startsWith('image/') && !workingFile.name.match(/\.(heic|heif|jpe?g|png|webp|mov)$/i))
   ) {
-    return file;
+    return workingFile;
   }
 
   // 1280px is optimal HD for retina mobile & desktop galleries
@@ -163,7 +170,7 @@ export async function compressImage(
 
   try {
     let img: HTMLImageElement | null = new Image();
-    let objectUrl = URL.createObjectURL(file);
+    let objectUrl = URL.createObjectURL(workingFile);
     img.src = objectUrl;
 
     const loaded = await new Promise<boolean>((resolve) => {
@@ -173,7 +180,7 @@ export async function compressImage(
       if (img.complete && img.naturalWidth) resolve(true);
     });
 
-    // If direct HTMLImageElement load failed (e.g. raw unconverted HEIC on desktop), try fallback
+    // If direct HTMLImageElement load failed, try fallback
     if (!loaded || !img.naturalWidth || !img.naturalHeight) {
       URL.revokeObjectURL(objectUrl);
       try {
@@ -183,13 +190,13 @@ export async function compressImage(
           useWebWorker: true,
           initialQuality: 0.75
         };
-        const compressedBlob = await imageCompression(file, fallbackOptions);
-        return new File([compressedBlob], file.name.replace(/\.[^/.]+$/, '') + '.jpg', {
+        const compressedBlob = await imageCompression(workingFile, fallbackOptions);
+        return new File([compressedBlob], workingFile.name.replace(/\.[^/.]+$/, '') + '.jpg', {
           type: 'image/jpeg',
           lastModified: Date.now()
         });
       } catch {
-        return file;
+        return workingFile;
       }
     }
 
@@ -354,7 +361,10 @@ export async function uploadImageToStorage(
   }
 
   const isWebp = optimizedFile.type === 'image/webp';
-  const fileExt = isWebp ? 'webp' : (file.name.split('.').pop()?.toLowerCase() || 'jpg');
+  let fileExt = isWebp ? 'webp' : (optimizedFile.name.split('.').pop()?.toLowerCase() || 'jpg');
+  if (fileExt === 'heic' || fileExt === 'heif') {
+    fileExt = 'jpg';
+  }
   const uniqueId = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
   const fileName = `${uniqueId}.${fileExt}`;
   const filePath = `${path}/${fileName}`;

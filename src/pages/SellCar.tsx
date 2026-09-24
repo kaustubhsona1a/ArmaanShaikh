@@ -1,6 +1,7 @@
 import React, { useState, FormEvent, useRef, DragEvent, ChangeEvent } from 'react';
 import { useVehicles } from '../context/VehicleContext';
 import { uploadMultipleImagesToStorage } from '../lib/supabase';
+import { processUploadFiles } from '../lib/heic';
 import { Camera, Image as ImageIcon, Upload, X, Loader2 } from 'lucide-react';
 
 export default function SellCar() {
@@ -39,23 +40,29 @@ export default function SellCar() {
     setIsDragActive(false);
     
     if (e.dataTransfer?.files && e.dataTransfer.files[0]) {
-      const filesArray = Array.from(e.dataTransfer.files).filter((file: any) => file.type.startsWith('image/')) as File[];
+      const filesArray = Array.from(e.dataTransfer.files).filter((file: any) => 
+        file.type.startsWith('image/') || /\.(heic|heif)$/i.test(file.name)
+      ) as File[];
       addFiles(filesArray);
     }
   };
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const filesArray = Array.from(e.target.files).filter((file: any) => file.type.startsWith('image/')) as File[];
+      const filesArray = Array.from(e.target.files).filter((file: any) => 
+        file.type.startsWith('image/') || /\.(heic|heif)$/i.test(file.name)
+      ) as File[];
       addFiles(filesArray);
     }
   };
 
-  const addFiles = (files: File[]) => {
-    setSelectedFiles(prev => [...prev, ...files]);
+  const addFiles = async (files: File[]) => {
+    // Decode and convert any Apple HEIC/HEIF files to standard JPEG
+    const processed = await processUploadFiles(files);
+    setSelectedFiles(prev => [...prev, ...processed]);
     
     // Create local blob URLs for immediate premium preview rendering
-    const urls = files.map(file => URL.createObjectURL(file));
+    const urls = processed.map(file => URL.createObjectURL(file));
     setPreviewUrls(prev => [...prev, ...urls]);
   };
 
@@ -217,7 +224,7 @@ export default function SellCar() {
                     id="lead-photos"
                     type="file" 
                     multiple 
-                    accept="image/*" 
+                    accept="image/*,.heic,.heif,image/heic,image/heif" 
                     onChange={handleFileChange}
                     className="hidden" 
                   />

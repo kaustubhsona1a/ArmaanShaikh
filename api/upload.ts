@@ -1,5 +1,6 @@
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { createClient } from '@supabase/supabase-js';
+import sharp from 'sharp';
 
 const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID || process.env.CLOUDFLARE_ACCOUNT_ID || process.env.VITE_R2_ACCOUNT_ID || '6ef17a804311f710ae26039ae53a05d0';
 const R2_BUCKET = process.env.R2_BUCKET || process.env.CLOUDFLARE_R2_BUCKET || process.env.VITE_R2_BUCKET || 'car-images';
@@ -17,7 +18,9 @@ const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
   'image/png',
   'image/webp',
-  'image/avif'
+  'image/avif',
+  'image/heic',
+  'image/heif'
 ]);
 
 const MAX_FILE_SIZE = 6 * 1024 * 1024; // 6MB limit per compressed image
@@ -46,12 +49,26 @@ export default async function handler(req: any, res: any) {
 
     // Validate MIME type against whitelist
     const safeContentType = contentType?.toLowerCase() || 'image/jpeg';
-    if (!ALLOWED_MIME_TYPES.has(safeContentType)) {
-      return res.status(400).json({ error: 'Invalid file type. Only JPEG, PNG, and WebP images are permitted.' });
+    if (!ALLOWED_MIME_TYPES.has(safeContentType) && !cleanPath.match(/\.(heic|heif)$/i)) {
+      return res.status(400).json({ error: 'Invalid file type. Only JPEG, PNG, WebP, and HEIC images are permitted.' });
     }
 
     // Decode and validate file size
-    const buffer = Buffer.from(base64Data, 'base64');
+    let buffer = Buffer.from(base64Data, 'base64');
+    let finalContentType = safeContentType;
+    let targetPath = cleanPath;
+
+    // Server-side safety: if HEIC/HEIF, convert to universally compatible JPEG with sharp
+    if (finalContentType === 'image/heic' || finalContentType === 'image/heif' || targetPath.match(/\.(heic|heif)$/i)) {
+      try {
+        buffer = await sharp(buffer).jpeg({ quality: 88 }).toBuffer();
+        finalContentType = 'image/jpeg';
+        targetPath = targetPath.replace(/\.(heic|heif)$/i, '.jpg');
+      } catch (sharpErr) {
+        console.warn('[SHARP HEIC CONVERT WARNING]', sharpErr);
+      }
+    }
+
     if (buffer.length > MAX_FILE_SIZE) {
       return res.status(413).json({ error: 'Payload too large. Maximum size is 6MB.' });
     }
@@ -102,13 +119,13 @@ export default async function handler(req: any, res: any) {
 
     await s3.send(new PutObjectCommand({
       Bucket: R2_BUCKET,
-      Key: cleanPath,
+      Key: targetPath,
       Body: buffer,
-      ContentType: safeContentType,
+      ContentType: finalContentType,
       CacheControl: 'public, max-age=31536000, immutable'
     }));
 
-    const url = `${R2_PUBLIC_URL}/${cleanPath}`;
+    const url = `${R2_PUBLIC_URL}/${targetPath}`;
     return res.status(200).json({ success: true, url });
   } catch (err: any) {
     console.error('[API UPLOAD ERROR]', err);
