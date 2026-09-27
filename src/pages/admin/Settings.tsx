@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useVehicles, sanitizeHeroImage } from '../../context/VehicleContext';
-import { UploadCloud, Trash2, Plus, Image as ImageIcon, Link as LinkIcon, AlertCircle, Wifi, WifiOff, Check, Zap, HardDrive, RefreshCw, CheckCircle2, Eye, X, RotateCcw, ShieldCheck } from 'lucide-react';
+import { UploadCloud, Trash2, Plus, Image as ImageIcon, Link as LinkIcon, AlertCircle, Wifi, WifiOff, Check, Zap, HardDrive, RefreshCw, CheckCircle2, Eye, X, RotateCcw, ShieldCheck, Cloud } from 'lucide-react';
 import { uploadImageToStorage, cleanupLegacyImageVariants, batchOptimizeAllVehicles, revertFleetOptimization, getFleetOptimizationBackup, clearFleetOptimizationBackup, compressImage, supabase, OptimizationBackupLog } from '../../lib/supabase';
 import { SmartImage } from '../../components/SmartImage';
+import { syncPendingImagesToR2, R2SyncProgress } from '../../lib/r2Sync';
 
 export default function AdminSettings() {
   const { siteConfig, updateSiteConfig, refreshVehicles } = useVehicles();
@@ -38,6 +39,9 @@ export default function AdminSettings() {
   } | null>(null);
   const [isTestingCompression, setIsTestingCompression] = useState(false);
   const [activeToggle, setActiveToggle] = useState<'original' | 'compressed'>('compressed');
+  const [isSyncingR2, setIsSyncingR2] = useState(false);
+  const [r2SyncProgress, setR2SyncProgress] = useState<R2SyncProgress | null>(null);
+  const [r2SyncResult, setR2SyncResult] = useState<{ migratedCount: number; failedCount: number } | null>(null);
 
   const [supabaseStatus, setSupabaseStatus] = useState<'checking' | 'connected' | 'not_configured' | 'error'>('checking');
   const [supabaseErrorMsg, setSupabaseErrorMsg] = useState('');
@@ -87,6 +91,33 @@ export default function AdminSettings() {
       setErrorText('Failed to perform cleanup.');
     } finally {
       setIsCleaning(false);
+    }
+  };
+
+  const handleSyncToR2 = async () => {
+    setIsSyncingR2(true);
+    setR2SyncResult(null);
+    setR2SyncProgress(null);
+    setErrorText('');
+    try {
+      const result = await syncPendingImagesToR2((progress) => {
+        setR2SyncProgress(progress);
+      });
+      setR2SyncResult({ migratedCount: result.migratedCount, failedCount: result.failedCount });
+      if (result.migratedCount > 0) {
+        await refreshVehicles();
+        setSuccess(`Successfully migrated ${result.migratedCount} photo record(s) directly to Cloudflare R2!`);
+        setTimeout(() => setSuccess(''), 6000);
+      } else {
+        setSuccess('All fleet images are already 100% synchronized with Cloudflare R2.');
+        setTimeout(() => setSuccess(''), 6000);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setErrorText('R2 synchronization encountered an issue.');
+      setTimeout(() => setErrorText(''), 6000);
+    } finally {
+      setIsSyncingR2(false);
     }
   };
 
@@ -646,6 +677,30 @@ export default function AdminSettings() {
 
               <button
                 type="button"
+                disabled={isSyncingR2 || isOptimizingFleet || isRevertingFleet}
+                onClick={handleSyncToR2}
+                className={`px-5 py-3 rounded-xl text-xs uppercase font-mono font-bold tracking-wider flex items-center shrink-0 border transition-all ${
+                  isSyncingR2
+                    ? 'bg-zinc-800 text-zinc-500 border-white/10 cursor-not-allowed'
+                    : 'bg-sky-500 hover:bg-sky-400 text-zinc-950 border-sky-400 shadow-lg shadow-sky-500/10'
+                }`}
+                title="Migrate any lingering Supabase or base64 images directly into Cloudflare R2"
+              >
+                {isSyncingR2 ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Syncing to R2...
+                  </>
+                ) : (
+                  <>
+                    <Cloud className="w-4 h-4 mr-2" />
+                    Sync All to Cloudflare R2
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
                 disabled={isOptimizingFleet || isRevertingFleet}
                 onClick={handleRunFleetOptimization}
                 className={`px-5 py-3 rounded-xl text-xs uppercase font-mono font-bold tracking-wider flex items-center shrink-0 transition-all ${
@@ -668,6 +723,24 @@ export default function AdminSettings() {
               </button>
             </div>
           </div>
+
+          {/* Real-time R2 Sync Progress Bar */}
+          {isSyncingR2 && r2SyncProgress && (
+            <div className="bg-sky-500/5 border border-sky-500/20 p-5 rounded-xl space-y-3 my-4">
+              <div className="flex justify-between text-xs font-mono text-sky-300 font-bold">
+                <span>Transferring images to Cloudflare R2 & Updating Database...</span>
+                <span>Photo {r2SyncProgress.current} of {r2SyncProgress.total}</span>
+              </div>
+              <div className="w-full bg-black/60 rounded-full h-2 overflow-hidden border border-white/10">
+                <div 
+                  className="bg-sky-500 h-full transition-all duration-300 rounded-full"
+                  style={{
+                    width: `${r2SyncProgress.total > 0 ? (r2SyncProgress.current / r2SyncProgress.total) * 100 : 0}%`
+                  }}
+                />
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 my-6">
             <div className="bg-black/30 border border-white/5 p-4 rounded-xl">

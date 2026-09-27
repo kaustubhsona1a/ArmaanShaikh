@@ -323,7 +323,16 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
         // 3. Process vehicle_images relation table if present
         if (v.vehicle_images && Array.isArray(v.vehicle_images) && v.vehicle_images.length > 0) {
           const sortedImg = [...v.vehicle_images].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
-          const mappedFromRelations = sortedImg.map(img => (img.image_url || img.gallery_url || img.fullscreen_url || img.thumbnail_url || img.url || '').trim()).filter(Boolean);
+          const mappedFromRelations = sortedImg.map(img => {
+            let u = (img.image_url || img.gallery_url || img.fullscreen_url || img.thumbnail_url || img.url || '').trim();
+            // If the record is a data: URL, map to the uploaded Cloudflare R2 permanent URL
+            if (u.startsWith('data:') && (img.vehicle_id || v.id)) {
+              const vid = img.vehicle_id || v.id;
+              const ord = img.display_order !== undefined ? img.display_order : 0;
+              return `https://pub-f4e7a3fade6e4cc59414305e0c001271.r2.dev/vehicles/${vid}_${ord}_fixed.jpg`;
+            }
+            return u;
+          }).filter(Boolean);
           if (mappedFromRelations.length > 0) {
             if (images.length === 0) {
               images = mappedFromRelations;
@@ -339,8 +348,13 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
           }
         }
         
-        // 4. Resolve all image URLs (GitHub blob conversion, legacy paths, subpath handling)
-        images = images.map(img => resolveImageUrl(img)).filter(Boolean);
+        // 4. Resolve all image URLs (GitHub blob conversion, legacy paths, subpath handling, data URL cleanup)
+        images = images.map((img, idx) => {
+          if (typeof img === 'string' && img.startsWith('data:') && v.id) {
+            return `https://pub-f4e7a3fade6e4cc59414305e0c001271.r2.dev/vehicles/${v.id}_${idx}_fixed.jpg`;
+          }
+          return resolveImageUrl(img);
+        }).filter(Boolean);
         
         let features = v.features || [];
         let instagramReel = v.instagram_reel || '';
@@ -566,19 +580,43 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
               await saveToCache('vehicles', normalized);
               await saveToCache('vehicles_version', remoteVersion);
 
-              // Fully autonomous silent transfer: Migrate any remaining Supabase photos directly to Cloudflare R2
-              const hasSupabaseImages = data.some((car: any) => 
-                car.vehicle_images?.some((img: any) => img.image_url?.includes('supabase.co'))
+              // Fully autonomous silent transfer: Migrate any remaining Supabase photos or data URLs directly to Cloudflare R2
+              const hasPendingImages = data.some((car: any) => 
+                car.vehicle_images?.some((img: any) => img.image_url?.includes('supabase.co') || img.image_url?.startsWith('data:'))
               );
-              if (hasSupabaseImages && typeof window !== 'undefined') {
-                fetch('/api/sync-r2', { method: 'POST' })
-                  .then(res => res.json())
-                  .then(resData => {
-                    if (resData?.migratedCount > 0) {
-                      console.log(`[AUTONOMOUS R2 SYNC] Successfully migrated ${resData.migratedCount} photo(s) to Cloudflare R2.`);
-                    }
+              if (hasPendingImages && typeof window !== 'undefined') {
+                supabase.auth.getSession().then(({ data: { session } }) => {
+                  const token = session?.access_token;
+                  fetch('/api/sync-r2', { 
+                    method: 'POST',
+                    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
                   })
-                  .catch(() => {});
+                    .then(res => res.json())
+                    .then(resData => {
+                      if (resData?.migratedCount > 0) {
+                        console.log(`[AUTONOMOUS R2 SYNC] Successfully migrated ${resData.migratedCount} photo(s) to Cloudflare R2.`);
+                      }
+                    })
+                    .catch(() => {});
+
+                  // If admin session is active, also ensure database records are updated directly
+                  if (token) {
+                    data.forEach((car: any) => {
+                      (car.vehicle_images || []).forEach((img: any) => {
+                        if (img.image_url?.includes('/storage/v1/object/public/vehicle-images/')) {
+                          const r2Url = img.image_url.replace(
+                            /https:\/\/[^/]+\.supabase\.co\/storage\/v1\/object\/public\/vehicle-images\//g,
+                            'https://pub-f4e7a3fade6e4cc59414305e0c001271.r2.dev/'
+                          );
+                          supabase.from('vehicle_images').update({ image_url: r2Url }).eq('id', img.id).then(() => {});
+                        } else if (img.image_url?.startsWith('data:')) {
+                          const r2Url = `https://pub-f4e7a3fade6e4cc59414305e0c001271.r2.dev/vehicles/${car.id}_${img.display_order || 0}_fixed.jpg`;
+                          supabase.from('vehicle_images').update({ image_url: r2Url }).eq('id', img.id).then(() => {});
+                        }
+                      });
+                    });
+                  }
+                }).catch(() => {});
               }
             } else if (!hasMountedCache) {
               setVehicles(MOCK_VEHICLES);

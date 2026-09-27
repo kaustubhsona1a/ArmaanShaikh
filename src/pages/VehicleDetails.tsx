@@ -123,6 +123,10 @@ export default function VehicleDetails() {
   const [tenureYears, setTenureYears] = useState<number>(5);
   const [loanAmount, setLoanAmount] = useState<number>(0);
 
+  // Share Modal State Variables (hooks declared unconditionally)
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [copied, setCopied] = useState(false);
+
   useEffect(() => {
     if (car) {
       setLoanAmount(Math.round(car.price * 0.8));
@@ -185,8 +189,9 @@ export default function VehicleDetails() {
     window.open(`tel:+917400113999`);
   };
 
-  const [showShareModal, setShowShareModal] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const pageTitle = `${car.year} ${car.make} ${car.model} ${car.variant} | Bombay Motors`;
+  const pageDescription = `Exquisite luxury pre-owned ${car.year} ${car.make} ${car.model}. Contact us today to arrange a viewing at our Showroom. ${car.description ? car.description.substring(0, 100) + '...' : ''}`;
+  const ogImageUrl = car.images?.[0] || "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800";
 
   const handleShare = async () => {
     const shareData = {
@@ -478,11 +483,6 @@ export default function VehicleDetails() {
       </div>
     );
   };
-
-  const pageTitle = `${car.year} ${car.make} ${car.model} ${car.variant} | Bombay Motors`;
-
-  const pageDescription = `Exquisite luxury pre-owned ${car.year} ${car.make} ${car.model}. Contact us today to arrange a viewing at our Showroom. ${car.description ? car.description.substring(0, 100) + '...' : ''}`;
-  const ogImageUrl = car.images?.[0] || "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800";
 
   return (
     <div className="min-h-screen bg-transparent text-zinc-750 py-5 sm:py-8 font-sans selection:bg-white selection:text-zinc-950 z-10 relative">

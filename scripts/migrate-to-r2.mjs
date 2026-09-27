@@ -5,8 +5,8 @@ const SUPABASE_URL = process.env.VITE_SUPABASE_URL || "https://pgffljamplkthmwah
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON;
 
 const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID || "6ef17a804311f710ae26039ae53a05d0";
-const R2_ACCESS_KEY_ID = process.argv[2] || process.env.R2_ACCESS_KEY_ID || process.env.CLOUDFLARE_R2_ACCESS_KEY_ID || "683026edb67ca029c3a214d844f7bfe4";
-const R2_SECRET_ACCESS_KEY = process.argv[3] || process.env.R2_SECRET_ACCESS_KEY || process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY || "b67c25db0812fd6e7b3ec19cf8ef97d40256b04ad884fbd06a44b2b40dd0a278";
+const R2_ACCESS_KEY_ID = process.argv[2] || process.env.R2_ACCESS_KEY_ID || process.env.CLOUDFLARE_R2_ACCESS_KEY_ID || "";
+const R2_SECRET_ACCESS_KEY = process.argv[3] || process.env.R2_SECRET_ACCESS_KEY || process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY || "";
 const R2_BUCKET = process.env.R2_BUCKET || "car-images";
 const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || "https://pub-f4e7a3fade6e4cc59414305e0c001271.r2.dev";
 
@@ -236,14 +236,55 @@ async function main() {
   const workers = Array.from({ length: CONCURRENCY }, (_, i) => worker(i + 1));
   await Promise.all(workers);
 
+  // Migrate any base64 data: URLs in vehicle_images to R2
+  const dataUrlRows = dbRows.filter(row => row.image_url && row.image_url.startsWith("data:"));
+  if (dataUrlRows.length > 0) {
+    console.log(`\n--> Migrating ${dataUrlRows.length} embedded base64 data URLs into R2...`);
+    let dataUrlMigrated = 0;
+    for (const row of dataUrlRows) {
+      try {
+        const matches = row.image_url.match(/^data:([^;]+);base64,(.+)$/);
+        if (!matches) continue;
+        const mimeType = matches[1];
+        const base64Data = matches[2];
+        const ext = mimeType === "image/webp" ? "webp" : mimeType === "image/png" ? "png" : "jpg";
+        const key = `vehicles/migrated_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+        const buffer = Buffer.from(base64Data, "base64");
+
+        await r2.send(new PutObjectCommand({
+          Bucket: R2_BUCKET,
+          Key: key,
+          Body: buffer,
+          ContentType: mimeType,
+          CacheControl: "public, max-age=31536000, immutable"
+        }));
+
+        const r2Url = `${R2_PUBLIC_URL}/${key}`;
+        await supabase
+          .from("vehicle_images")
+          .update({ image_url: r2Url })
+          .eq("id", row.id);
+
+        dataUrlMigrated++;
+        totalBytes += buffer.length;
+        if (dataUrlMigrated % 10 === 0 || dataUrlMigrated === dataUrlRows.length) {
+          console.log(`[Data URLs: ${dataUrlMigrated}/${dataUrlRows.length}] Uploaded & Updated: ${r2Url}`);
+        }
+      } catch (err) {
+        console.error(`Failed migrating data URL row ${row.id}:`, err.message);
+      }
+    }
+  }
+
   const durationSec = ((Date.now() - startTime) / 1000).toFixed(1);
   const totalMB = (totalBytes / (1024 * 1024)).toFixed(1);
 
   console.log("\n==================================================");
   console.log(" MIGRATION SUMMARY");
-  console.log(` Total processed: ${completed}`);
+  console.log(` Total storage keys processed: ${completed}`);
   console.log(` Newly uploaded to R2: ${completed - skipped - failed}`);
   console.log(` Already in R2: ${skipped}`);
+  console.log(` Data URLs migrated: ${dataUrlRows.length}`);
   console.log(` Failed: ${failed}`);
   console.log(` Total Data Transferred: ${totalMB} MB`);
   console.log(` Total Time: ${durationSec} seconds`);

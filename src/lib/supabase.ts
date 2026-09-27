@@ -346,18 +346,11 @@ export async function uploadImageToStorage(
   const quality = isShowcase ? 0.80 : 0.75;
 
   let optimizedFile = file;
-  let fallbackDataUrl = '';
 
   try {
     optimizedFile = await compressImage(file, { maxDimension: maxDim, targetQuality: quality });
-    fallbackDataUrl = await fileToDataUrl(optimizedFile);
   } catch (optErr) {
     console.warn('[OPTIMIZE SKIP] Could not compress, using raw file:', optErr);
-    try {
-      fallbackDataUrl = await fileToDataUrl(file);
-    } catch {
-      // Continue
-    }
   }
 
   const isWebp = optimizedFile.type === 'image/webp';
@@ -369,14 +362,14 @@ export async function uploadImageToStorage(
   const fileName = `${uniqueId}.${fileExt}`;
   const filePath = `${path}/${fileName}`;
 
-  // Step 2: Direct Upload to Cloudflare R2 ONLY (No Supabase Storage)
+  // Step 2: Direct Upload to Cloudflare R2 ONLY
   let attempt = 0;
   let lastError: any = null;
 
   while (attempt < maxRetries) {
     try {
       const r2Url = await uploadToR2(optimizedFile, filePath, optimizedFile.type);
-      if (r2Url) {
+      if (r2Url && !r2Url.startsWith('data:')) {
         console.log('[R2 DIRECT UPLOAD SUCCESS] Image uploaded directly to Cloudflare R2:', r2Url);
         return r2Url;
       }
@@ -390,20 +383,13 @@ export async function uploadImageToStorage(
     }
   }
 
-  // Step 3: FAIL-SAFE GUARANTEE
-  // If network issue prevents R2 upload, preserve photo with optimized inline data URL
-  if (fallbackDataUrl) {
-    console.warn(`[R2 FAILSAFE] Cloudflare R2 upload failed for ${file.name}, using optimized embedded data URL fail-safe.`);
-    return fallbackDataUrl;
-  }
-
   console.error(`[R2 UPLOAD FAILED] ${file.name} after ${maxRetries} retries:`, lastError);
-  throw lastError || new Error(`Failed to upload ${file.name} to Cloudflare R2`);
+  throw lastError || new Error(`Failed to upload ${file.name} to Cloudflare R2. Please check your network connection and R2 storage configuration.`);
 }
 
 /**
- * Bulletproof batch uploader:
- * Guarantees that ALL selected images are processed, optimized, and saved with 100% success rate.
+ * Direct Cloudflare R2 batch uploader:
+ * Uploads all images directly to Cloudflare R2 with automatic retry.
  */
 export async function uploadMultipleImagesToStorage(
   files: File[],
@@ -422,30 +408,21 @@ export async function uploadMultipleImagesToStorage(
         onProgress(completedCount, files.length);
       }
       
-      const url = await uploadImageToStorage(file, path, bucket, 2);
-      if (url) {
+      const url = await uploadImageToStorage(file, path, bucket, 3);
+      if (url && !url.startsWith('data:')) {
         successful.push(url);
-      }
-    } catch (err: any) {
-      console.warn(`[BATCH PROCESS FAILSAFE] Direct upload failed for image ${i + 1}, activating secondary local optimizer...`, err);
-      try {
-        // Absolute fallback: Compress to lightweight data URL
-        const opt = await optimizeAndCompressImage(file, 1200, 0.78);
-        if (opt.dataUrl) {
-          successful.push(opt.dataUrl);
-        } else {
-          failed.push({
-            fileName: `Photo ${i + 1}`,
-            reason: err?.message || 'Processing error'
-          });
-        }
-      } catch (secErr: any) {
-        console.error(`Fatal processing error on image ${i + 1}:`, secErr);
+      } else {
         failed.push({
-          fileName: `Photo ${i + 1}`,
-          reason: secErr?.message || 'Processing error'
+          fileName: file.name || `Photo ${i + 1}`,
+          reason: 'Invalid URL returned from storage'
         });
       }
+    } catch (err: any) {
+      console.error(`Direct Cloudflare R2 upload failed for image ${i + 1}:`, err);
+      failed.push({
+        fileName: file.name || `Photo ${i + 1}`,
+        reason: err?.message || 'Cloudflare R2 upload failed'
+      });
     } finally {
       completedCount++;
       if (onProgress) {

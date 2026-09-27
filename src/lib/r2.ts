@@ -85,9 +85,16 @@ export async function uploadToR2(
       }
     } else {
       const errJson = await res.json().catch(() => ({}));
-      console.warn('[R2 SERVERLESS UPLOAD RES ERROR]', res.status, errJson);
+      const errMsg = errJson?.error || `Upload to Cloudflare R2 failed (HTTP ${res.status})`;
+      console.warn('[R2 SERVERLESS UPLOAD RES ERROR]', res.status, errMsg);
+      if (!getS3Client()) {
+        throw new Error(errMsg);
+      }
     }
-  } catch (apiErr) {
+  } catch (apiErr: any) {
+    if (!getS3Client()) {
+      throw apiErr;
+    }
     console.debug('[R2 SERVERLESS UPLOAD SKIP]', apiErr);
   }
 

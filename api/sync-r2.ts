@@ -33,11 +33,54 @@ export default async function handler(req: any, res: any) {
     });
   }
 
-  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  // Diagnostic mode to inspect environment & S3 error details
+  const searchParams = req.url ? new URL(req.url, 'http://localhost').searchParams : new URLSearchParams();
+  const isDiag = searchParams.get('diagnostic') === '1' || searchParams.get('diag') === 'true' || req.query?.diagnostic === '1' || req.query?.diag === 'true';
+
+  if (isDiag) {
+    const testS3 = new S3Client({
+      region: 'auto',
+      endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+      credentials: {
+        accessKeyId: R2_ACCESS_KEY_ID,
+        secretAccessKey: R2_SECRET_ACCESS_KEY
+      }
+    });
+
+    try {
+      await testS3.send(new PutObjectCommand({
+        Bucket: R2_BUCKET,
+        Key: 'test-ping.txt',
+        Body: 'ping',
+        ContentType: 'text/plain'
+      }));
+      return res.status(200).json({ diagnostic: 'SUCCESS_WRITE_R2', bucket: R2_BUCKET });
+    } catch (testErr: any) {
+      return res.status(200).json({
+        diagnostic: 'FAILED_WRITE_R2',
+        bucket: R2_BUCKET,
+        accountId: R2_ACCOUNT_ID,
+        keyPrefix: R2_ACCESS_KEY_ID ? `${R2_ACCESS_KEY_ID.substring(0, 4)}...${R2_ACCESS_KEY_ID.substring(R2_ACCESS_KEY_ID.length - 4)}` : 'null',
+        keyLength: R2_ACCESS_KEY_ID ? R2_ACCESS_KEY_ID.length : 0,
+        secretLength: R2_SECRET_ACCESS_KEY ? R2_SECRET_ACCESS_KEY.length : 0,
+        errorName: testErr?.name,
+        errorMessage: testErr?.message,
+        errorCode: testErr?.Code,
+        statusCode: testErr?.['$metadata']?.httpStatusCode
+      });
+    }
+  }
 
   // Authenticate Admin session if token provided
   const authHeader = req.headers.authorization || req.headers.Authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
+
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    }
+  });
+
   if (token) {
     const { data: { user } } = await supabase.auth.getUser(token);
     if (!user) {
@@ -127,7 +170,14 @@ export default async function handler(req: any, res: any) {
         successCount++;
       } catch (err: any) {
         failedCount++;
-        errors.push({ id: item.id, url: item.image_url, error: err.message });
+        errors.push({
+          id: item.id,
+          url: item.image_url,
+          error: err.message,
+          name: err.name,
+          code: err.Code,
+          statusCode: err['$metadata']?.httpStatusCode
+        });
       }
     }
 
