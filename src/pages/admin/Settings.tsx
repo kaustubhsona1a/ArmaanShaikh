@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useVehicles, sanitizeHeroImage } from '../../context/VehicleContext';
-import { UploadCloud, Trash2, Plus, Image as ImageIcon, Link as LinkIcon, AlertCircle, Wifi, WifiOff, Check, Zap, HardDrive, RefreshCw, CheckCircle2, Eye, X, RotateCcw, ShieldCheck, Cloud } from 'lucide-react';
-import { uploadImageToStorage, cleanupLegacyImageVariants, batchOptimizeAllVehicles, revertFleetOptimization, getFleetOptimizationBackup, clearFleetOptimizationBackup, compressImage, supabase, OptimizationBackupLog } from '../../lib/supabase';
+import { UploadCloud, Trash2, Plus, Image as ImageIcon, Link as LinkIcon, AlertCircle, Wifi, WifiOff, Check, RefreshCw, CheckCircle2, X, Cloud } from 'lucide-react';
+import { uploadImageToStorage, cleanupLegacyImageVariants, supabase } from '../../lib/supabase';
 import { SmartImage } from '../../components/SmartImage';
 import { syncPendingImagesToR2, R2SyncProgress } from '../../lib/r2Sync';
 
@@ -11,34 +11,6 @@ export default function AdminSettings() {
   const [errorText, setErrorText] = useState('');
   const [isCompressing, setIsCompressing] = useState(false);
   const [isCleaning, setIsCleaning] = useState(false);
-  const [isOptimizingFleet, setIsOptimizingFleet] = useState(false);
-  const [isRevertingFleet, setIsRevertingFleet] = useState(false);
-  const [revertProgress, setRevertProgress] = useState<{ reverted: number; total: number } | null>(null);
-  const [backupInfo, setBackupInfo] = useState<OptimizationBackupLog | null>(() => getFleetOptimizationBackup());
-  const [optimizeProgress, setOptimizeProgress] = useState<{
-    currentVehicle: number;
-    totalVehicles: number;
-    imagesProcessed: number;
-    bytesSaved: number;
-    currentCarName: string;
-  } | null>(null);
-  const [optimizeSummary, setOptimizeSummary] = useState<{
-    vehiclesProcessed: number;
-    imagesOptimized: number;
-    totalBytesSaved: number;
-  } | null>(null);
-
-  // Single-image test compression sandbox
-  const [testImage, setTestImage] = useState<{
-    originalUrl: string;
-    originalSize: number;
-    compressedUrl: string;
-    compressedSize: number;
-    fileName: string;
-    reductionPercent: number;
-  } | null>(null);
-  const [isTestingCompression, setIsTestingCompression] = useState(false);
-  const [activeToggle, setActiveToggle] = useState<'original' | 'compressed'>('compressed');
   const [isSyncingR2, setIsSyncingR2] = useState(false);
   const [r2SyncProgress, setR2SyncProgress] = useState<R2SyncProgress | null>(null);
   const [r2SyncResult, setR2SyncResult] = useState<{ migratedCount: number; failedCount: number } | null>(null);
@@ -118,120 +90,6 @@ export default function AdminSettings() {
       setTimeout(() => setErrorText(''), 6000);
     } finally {
       setIsSyncingR2(false);
-    }
-  };
-
-  const handleRunFleetOptimization = async () => {
-    setIsOptimizingFleet(true);
-    setErrorText('');
-    setOptimizeSummary(null);
-    setOptimizeProgress({
-      currentVehicle: 0,
-      totalVehicles: 0,
-      imagesProcessed: 0,
-      bytesSaved: 0,
-      currentCarName: 'Starting image scanner...'
-    });
-
-    try {
-      const result = await batchOptimizeAllVehicles((progress) => {
-        setOptimizeProgress(progress);
-      }, { keepOriginalBackup: true });
-
-      setOptimizeSummary(result);
-      setBackupInfo(getFleetOptimizationBackup());
-
-      if (refreshVehicles) {
-        await refreshVehicles();
-      }
-      setSuccess(`Image optimization completed! Compressed ${result.imagesOptimized} vehicle photos and saved ${(result.totalBytesSaved / (1024 * 1024)).toFixed(2)} MB of bandwidth & storage. Original images were preserved as safety backup!`);
-      setTimeout(() => setSuccess(''), 8000);
-    } catch (err: any) {
-      console.error('[FLEET OPTIMIZE ERROR]', err);
-      setErrorText(err.message || 'Failed to complete fleet image optimization.');
-      setTimeout(() => setErrorText(''), 6000);
-    } finally {
-      setIsOptimizingFleet(false);
-    }
-  };
-
-  const handleRevertFleetOptimization = async () => {
-    if (!backupInfo || !backupInfo.records || backupInfo.records.length === 0) {
-      setErrorText('No optimization backup found to revert.');
-      return;
-    }
-
-    if (!window.confirm(`Are you sure you want to revert ${backupInfo.records.length} images back to their original uncompressed versions?`)) {
-      return;
-    }
-
-    setIsRevertingFleet(true);
-    setErrorText('');
-    setRevertProgress({ reverted: 0, total: backupInfo.records.length });
-
-    try {
-      const result = await revertFleetOptimization((reverted, total) => {
-        setRevertProgress({ reverted, total });
-      });
-
-      if (result.success) {
-        setBackupInfo(null);
-        setOptimizeSummary(null);
-        if (refreshVehicles) {
-          await refreshVehicles();
-        }
-        setSuccess(`Successfully reverted ${result.revertedCount} vehicle photos back to their original quality!`);
-        setTimeout(() => setSuccess(''), 8000);
-      } else {
-        setErrorText(result.error || 'Failed to revert images.');
-      }
-    } catch (err: any) {
-      console.error('[REVERT ERROR]', err);
-      setErrorText(err?.message || 'Error occurred while reverting images.');
-    } finally {
-      setIsRevertingFleet(false);
-      setRevertProgress(null);
-    }
-  };
-
-  const handleTestImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setIsTestingCompression(true);
-      setErrorText('');
-      try {
-        if (testImage) {
-          URL.revokeObjectURL(testImage.originalUrl);
-          URL.revokeObjectURL(testImage.compressedUrl);
-        }
-        const originalUrl = URL.createObjectURL(file);
-        const compressedFile = await compressImage(file, { maxDimension: 1200, targetQuality: 0.70 });
-        const compressedUrl = URL.createObjectURL(compressedFile);
-        const reduction = Math.max(0, Math.round(((file.size - compressedFile.size) / file.size) * 100));
-
-        setTestImage({
-          originalUrl,
-          originalSize: file.size,
-          compressedUrl,
-          compressedSize: compressedFile.size,
-          fileName: file.name,
-          reductionPercent: reduction
-        });
-        setActiveToggle('compressed');
-      } catch (err: any) {
-        console.error('Test compression failed', err);
-        setErrorText(err.message || 'Failed to test compression on this image.');
-      } finally {
-        setIsTestingCompression(false);
-      }
-    }
-  };
-
-  const handleClearTestImage = () => {
-    if (testImage) {
-      URL.revokeObjectURL(testImage.originalUrl);
-      URL.revokeObjectURL(testImage.compressedUrl);
-      setTestImage(null);
     }
   };
 
@@ -638,53 +496,34 @@ export default function AdminSettings() {
           </div>
         </div>
 
-        <hr className="border-white/5" />
-
-        {/* Bandwidth & Storage (Cached Egress Shield) */}
+        {/* Cloudflare R2 Media & Storage Sync */}
         <div className="border border-white/10 bg-zinc-950/60 p-6 sm:p-8 rounded-2xl shadow-xl">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
             <div>
               <div className="flex items-center gap-2">
-                <span className="p-1.5 bg-amber-500/10 text-amber-400 rounded-lg border border-amber-500/20">
-                  <Zap className="w-4 h-4" />
+                <span className="p-1.5 bg-sky-500/10 text-sky-400 rounded-lg border border-sky-500/20">
+                  <Cloud className="w-4 h-4" />
                 </span>
                 <h2 className="text-base font-serif font-bold text-white uppercase tracking-widest">
-                  Bandwidth & Storage Optimizer (Egress Shield)
+                  Cloudflare R2 Storage & CDN
                 </h2>
               </div>
               <p className="text-zinc-400 text-xs mt-1 font-mono">
-                Solves Supabase "Cached Egress" limits by automatically shrinking vehicle photos down to lightweight WebP (~100KB) and activating client-side caching.
+                Ultra-fast media delivery powered by Cloudflare R2 with global edge CDN caching and $0 egress bandwidth fees.
               </p>
             </div>
             
             <div className="flex flex-wrap items-center gap-3">
-              {backupInfo && backupInfo.records && backupInfo.records.length > 0 && (
-                <button
-                  type="button"
-                  disabled={isOptimizingFleet || isRevertingFleet}
-                  onClick={handleRevertFleetOptimization}
-                  className={`px-4 py-3 rounded-xl text-xs uppercase font-mono font-bold tracking-wider flex items-center shrink-0 border transition-all ${
-                    isRevertingFleet
-                      ? 'bg-zinc-800 text-zinc-500 border-white/10 cursor-not-allowed'
-                      : 'bg-zinc-900 hover:bg-zinc-800 text-rose-300 border-rose-500/40 hover:border-rose-400 shadow-lg'
-                  }`}
-                  title="Restore original uncompressed image URLs for all vehicles from the latest backup"
-                >
-                  <RotateCcw className={`w-4 h-4 mr-2 ${isRevertingFleet ? 'animate-spin' : ''}`} />
-                  {isRevertingFleet ? 'Reverting...' : `Revert to Originals (${backupInfo.records.length})`}
-                </button>
-              )}
-
               <button
                 type="button"
-                disabled={isSyncingR2 || isOptimizingFleet || isRevertingFleet}
+                disabled={isSyncingR2}
                 onClick={handleSyncToR2}
                 className={`px-5 py-3 rounded-xl text-xs uppercase font-mono font-bold tracking-wider flex items-center shrink-0 border transition-all ${
                   isSyncingR2
                     ? 'bg-zinc-800 text-zinc-500 border-white/10 cursor-not-allowed'
                     : 'bg-sky-500 hover:bg-sky-400 text-zinc-950 border-sky-400 shadow-lg shadow-sky-500/10'
                 }`}
-                title="Migrate any lingering Supabase or base64 images directly into Cloudflare R2"
+                title="Synchronize all vehicle images permanently with Cloudflare R2"
               >
                 {isSyncingR2 ? (
                   <>
@@ -695,29 +534,6 @@ export default function AdminSettings() {
                   <>
                     <Cloud className="w-4 h-4 mr-2" />
                     Sync All to Cloudflare R2
-                  </>
-                )}
-              </button>
-
-              <button
-                type="button"
-                disabled={isOptimizingFleet || isRevertingFleet}
-                onClick={handleRunFleetOptimization}
-                className={`px-5 py-3 rounded-xl text-xs uppercase font-mono font-bold tracking-wider flex items-center shrink-0 transition-all ${
-                  isOptimizingFleet
-                    ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
-                    : 'bg-amber-500 hover:bg-amber-400 text-zinc-950 shadow-lg shadow-amber-500/10'
-                }`}
-              >
-                {isOptimizingFleet ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                    Optimizing Fleet...
-                  </>
-                ) : (
-                  <>
-                    <HardDrive className="w-4 h-4 mr-2" />
-                    Run 1-Click Fleet Image Optimizer
                   </>
                 )}
               </button>
@@ -742,7 +558,18 @@ export default function AdminSettings() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 my-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+            <div className="bg-black/30 border border-white/5 p-4 rounded-xl">
+              <p className="text-[10px] uppercase font-mono text-zinc-500 tracking-wider">Cloudflare R2 CDN</p>
+              <div className="flex items-center gap-2 mt-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span className="text-xs font-bold text-white font-mono uppercase">Connected & Active</span>
+              </div>
+              <p className="text-[9px] text-zinc-500 mt-1 font-mono">
+                Direct edge delivery with $0 egress bandwidth fees.
+              </p>
+            </div>
+
             <div className="bg-black/30 border border-white/5 p-4 rounded-xl">
               <p className="text-[10px] uppercase font-mono text-zinc-500 tracking-wider">Browser Egress Shield</p>
               <div className="flex items-center gap-2 mt-1.5">
@@ -755,238 +582,15 @@ export default function AdminSettings() {
             </div>
 
             <div className="bg-black/30 border border-white/5 p-4 rounded-xl">
-              <p className="text-[10px] uppercase font-mono text-zinc-500 tracking-wider">Viewport Intersection Guard</p>
+              <p className="text-[10px] uppercase font-mono text-zinc-500 tracking-wider">Direct R2 Pipeline</p>
               <div className="flex items-center gap-2 mt-1.5">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span className="text-xs font-bold text-white font-mono uppercase">Active (Lazy Intersection)</span>
+                <span className="text-xs font-bold text-white font-mono uppercase">Direct R2 Pipeline</span>
               </div>
               <p className="text-[9px] text-zinc-500 mt-1 font-mono">
-                Only cars scrolled into view are fetched from storage.
+                All newly added vehicles upload directly to Cloudflare R2.
               </p>
             </div>
-
-            <div className="bg-black/30 border border-white/5 p-4 rounded-xl">
-              <p className="text-[10px] uppercase font-mono text-zinc-500 tracking-wider">Upload Compressor</p>
-              <div className="flex items-center gap-2 mt-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span className="text-xs font-bold text-white font-mono uppercase">Active (1200px WebP)</span>
-              </div>
-              <p className="text-[9px] text-zinc-500 mt-1 font-mono">
-                All newly added vehicles are compressed before upload.
-              </p>
-            </div>
-          </div>
-
-          {/* Real-time Reverting Progress Bar */}
-          {isRevertingFleet && revertProgress && (
-            <div className="bg-rose-500/5 border border-rose-500/20 p-5 rounded-xl space-y-3">
-              <div className="flex justify-between text-xs font-mono text-rose-300 font-bold">
-                <span>Restoring original high-resolution photos...</span>
-                <span>Photo {revertProgress.reverted} of {revertProgress.total}</span>
-              </div>
-              <div className="w-full bg-black/60 rounded-full h-2 overflow-hidden border border-white/10">
-                <div 
-                  className="bg-rose-500 h-full transition-all duration-300 rounded-full"
-                  style={{
-                    width: `${revertProgress.total > 0 ? (revertProgress.reverted / revertProgress.total) * 100 : 0}%`
-                  }}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Backup Snapshot Active Badge */}
-          {backupInfo && backupInfo.records && backupInfo.records.length > 0 && !isRevertingFleet && !isOptimizingFleet && (
-            <div className="bg-zinc-900/90 border border-amber-500/20 p-3.5 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs font-mono">
-              <div className="flex items-center gap-2.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span className="text-zinc-300">
-                  <strong className="text-white">Safety Snapshot Available:</strong> {backupInfo.records.length} original photos preserved. You can restore them anytime using the "Revert to Originals" button.
-                </span>
-              </div>
-              <span className="text-[10px] text-zinc-500 shrink-0">
-                Created: {new Date(backupInfo.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </span>
-            </div>
-          )}
-
-          {/* Real-time Progress Bar */}
-          {isOptimizingFleet && optimizeProgress && (
-            <div className="bg-amber-500/5 border border-amber-500/20 p-5 rounded-xl space-y-3">
-              <div className="flex justify-between text-xs font-mono text-amber-300 font-bold">
-                <span>Optimizing: {optimizeProgress.currentCarName}</span>
-                <span>Vehicle {optimizeProgress.currentVehicle} of {optimizeProgress.totalVehicles}</span>
-              </div>
-              <div className="w-full bg-black/60 rounded-full h-2 overflow-hidden border border-white/10">
-                <div 
-                  className="bg-amber-500 h-full transition-all duration-300 rounded-full"
-                  style={{
-                    width: `${optimizeProgress.totalVehicles > 0 ? (optimizeProgress.currentVehicle / optimizeProgress.totalVehicles) * 100 : 0}%`
-                  }}
-                />
-              </div>
-              <div className="flex justify-between text-[10px] font-mono text-zinc-400">
-                <span>{optimizeProgress.imagesProcessed} photos processed</span>
-                <span>{(optimizeProgress.bytesSaved / (1024 * 1024)).toFixed(2)} MB bandwidth saved so far</span>
-              </div>
-            </div>
-          )}
-
-          {/* Results Summary */}
-          {optimizeSummary && !isOptimizingFleet && (
-            <div className="bg-emerald-500/10 border border-emerald-500/30 p-4 rounded-xl flex items-center justify-between text-emerald-300 font-mono text-xs">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                <span>
-                  Fleet optimization complete! {optimizeSummary.imagesOptimized} vehicle photos compressed.
-                </span>
-              </div>
-              <span className="font-bold text-white bg-emerald-500/20 px-3 py-1 rounded-lg border border-emerald-500/30">
-                {(optimizeSummary.totalBytesSaved / (1024 * 1024)).toFixed(2)} MB Saved
-              </span>
-            </div>
-          )}
-
-          {/* Test Compression Sandbox (Preview Before Compressing Fleet) */}
-          <div className="mt-8 border-t border-white/10 pt-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3">
-              <div>
-                <h3 className="text-sm font-serif font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                  <Eye className="w-4 h-4 text-amber-400" />
-                  Test Quality on a Single Photo (Zero-Risk Sandbox)
-                </h3>
-                <p className="text-zinc-400 text-xs font-mono mt-0.5">
-                  Select any car photo to run the exact compression algorithm directly in your browser. Nothing is uploaded or changed in your database.
-                </p>
-              </div>
-
-              {testImage && (
-                <button
-                  type="button"
-                  onClick={handleClearTestImage}
-                  className="text-xs text-zinc-400 hover:text-white font-mono flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 hover:bg-white/5 transition-colors"
-                >
-                  <X className="w-3.5 h-3.5" />
-                  Clear Test
-                </button>
-              )}
-            </div>
-
-            {!testImage ? (
-              <label className="border border-dashed border-white/20 hover:border-amber-500/60 bg-black/40 hover:bg-black/60 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-all group">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleTestImageSelect}
-                  disabled={isTestingCompression}
-                  className="hidden"
-                />
-                <div className="p-3 bg-amber-500/10 text-amber-400 rounded-full mb-3 group-hover:scale-110 transition-transform">
-                  {isTestingCompression ? (
-                    <RefreshCw className="w-6 h-6 animate-spin" />
-                  ) : (
-                    <UploadCloud className="w-6 h-6" />
-                  )}
-                </div>
-                <p className="text-xs font-bold font-mono text-white uppercase tracking-wider">
-                  {isTestingCompression ? 'Running Compression Algorithm...' : 'Select a Test Car Image'}
-                </p>
-                <p className="text-[11px] text-zinc-500 font-mono mt-1 text-center">
-                  Supports High-Res JPEG, PNG, or WEBP from your phone or desktop
-                </p>
-              </label>
-            ) : (
-              <div className="bg-black/40 border border-white/10 rounded-xl p-5 space-y-5">
-                {/* Stats Bar */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
-                  <div className="bg-zinc-900/80 border border-white/5 p-3 rounded-lg">
-                    <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider block">Original Image</span>
-                    <span className="text-sm font-bold text-zinc-300 font-mono mt-0.5 block">
-                      {(testImage.originalSize / 1024).toFixed(1)} KB
-                    </span>
-                    <span className="text-[9px] text-zinc-500 font-mono">Full Resolution</span>
-                  </div>
-
-                  <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-lg">
-                    <span className="text-[10px] text-amber-400 font-mono uppercase tracking-wider block">Compressed (WebP)</span>
-                    <span className="text-sm font-bold text-white font-mono mt-0.5 block">
-                      {(testImage.compressedSize / 1024).toFixed(1)} KB
-                    </span>
-                    <span className="text-[9px] text-amber-300/80 font-mono">Crisp HD 1200px</span>
-                  </div>
-
-                  <div className="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-lg">
-                    <span className="text-[10px] text-emerald-400 font-mono uppercase tracking-wider block">Egress Bandwidth Saved</span>
-                    <span className="text-sm font-bold text-emerald-300 font-mono mt-0.5 block">
-                      {testImage.reductionPercent}% Smaller
-                    </span>
-                    <span className="text-[9px] text-emerald-400/80 font-mono">
-                      -{((testImage.originalSize - testImage.compressedSize) / 1024).toFixed(1)} KB per view
-                    </span>
-                  </div>
-                </div>
-
-                {/* View Switcher Controls */}
-                <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                  <span className="text-xs font-mono text-zinc-400 truncate max-w-xs sm:max-w-md">
-                    File: <span className="text-white">{testImage.fileName}</span>
-                  </span>
-
-                  <div className="flex items-center gap-1.5 bg-zinc-900 p-1 rounded-lg border border-white/10">
-                    <button
-                      type="button"
-                      onClick={() => setActiveToggle('compressed')}
-                      className={`px-3 py-1 rounded text-xs font-mono font-bold uppercase transition-all ${
-                        activeToggle === 'compressed'
-                          ? 'bg-amber-500 text-black shadow'
-                          : 'text-zinc-400 hover:text-white'
-                      }`}
-                    >
-                      Compressed (WebP)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setActiveToggle('original')}
-                      className={`px-3 py-1 rounded text-xs font-mono font-bold uppercase transition-all ${
-                        activeToggle === 'original'
-                          ? 'bg-white text-black shadow'
-                          : 'text-zinc-400 hover:text-white'
-                      }`}
-                    >
-                      Original
-                    </button>
-                  </div>
-                </div>
-
-                {/* Visual Image Preview */}
-                <div className="relative aspect-video max-h-[460px] w-full rounded-xl overflow-hidden bg-zinc-950 border border-white/10 flex items-center justify-center">
-                  <img
-                    src={activeToggle === 'compressed' ? testImage.compressedUrl : testImage.originalUrl}
-                    alt={activeToggle === 'compressed' ? 'Compressed Preview' : 'Original Preview'}
-                    className="max-h-full max-w-full object-contain"
-                  />
-
-                  <div className="absolute bottom-3 left-3 bg-black/80 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 text-[11px] font-mono font-bold text-white uppercase tracking-wider">
-                    Showing: {activeToggle === 'compressed' ? 'Optimized WebP (0.70 Quality @ 1200px)' : 'Original Uncompressed File'}
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-1">
-                  <p className="text-[11px] font-mono text-zinc-400">
-                    Inspected the quality? If this meets your standards, you can safely run the full fleet optimization above.
-                  </p>
-                  <label className="text-xs font-mono uppercase font-bold text-amber-400 hover:text-amber-300 cursor-pointer underline underline-offset-4">
-                    Test Another Image
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleTestImageSelect}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
